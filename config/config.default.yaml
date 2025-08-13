@@ -1,0 +1,113 @@
+# Default configuration for MQI Communicator system
+
+database:
+  path: "data\\mqi_system_dev.db"
+
+# RabbitMQ message queue configuration
+rabbitmq:
+  url: "amqp://10.255.255.254:5672"
+
+# Process management configuration
+processes:
+  conductor:
+    enabled: true
+    restart_on_failure: true
+  case_scanner:
+    enabled: true
+    restart_on_failure: true
+  file_transfer:
+    enabled: true
+    restart_on_failure: true
+  remote_executor:
+    enabled: true
+    restart_on_failure: true
+  system_curator:
+    enabled: true
+    restart_on_failure: true
+  archiver:
+    enabled: true
+    restart_on_failure: true
+  dashboard:
+    enabled: true
+    restart_on_failure: true
+
+# Case Scanner configuration
+scanner:
+  target_directory: "data\\scan_directory"
+  scan_interval_sec: 1800
+
+# SFTP configuration for file transfer
+sftp:
+  host: "25.2.190.194"
+  port: 22
+  username: "jokh38"
+  private_key_path: "config\\id_rsa"
+
+# SSH configuration for remote execution
+ssh:
+  host: "25.2.190.194"
+  port: 22
+  username: "jokh38"
+  private_key_path: "config\\id_rsa"
+
+# File Transfer configuration
+file_transfer:
+  max_retries: 3
+  retry_delay_sec: 5
+
+# System Curator configuration
+curator:
+  monitor_interval_sec: 5
+  gpu_monitor_command: "nvidia-smi --query-gpu=index,uuid,utilization.gpu,memory.used,memory.total,temperature.gpu --format=csv,noheader,nounits"
+
+# Archiver configuration
+archiver:
+  schedule: "0 3 * * *"  # Daily at 3 AM
+  schedule_interval_sec: 86400
+  retention_days: 180
+  backup_path: "data\\backups\\"
+  archive_directory: "data\\archive\\"
+
+# Workflow definitions
+workflows:
+  default_qa:
+    - "run_interpreter"
+    - "run_moqui_sim"
+    - "convert_to_dicom"
+
+# Dashboard configuration
+dashboard:
+  host: "127.0.0.1"
+  port: 8080
+  log_level: "info" 
+  refresh_interval_sec: 5
+  auto_open_browser: true  # Set to true to automatically open browser on startup
+
+# Queue configuration for centralized messaging
+queues:
+  conductor: "conductor_queue"
+  file_transfer: "file_transfer_queue"
+  remote_executor: "remote_executor_queue"
+  archiver: "archiver_queue"
+  case_scanner: "case_scanner_queue"
+  system_curator: "system_curator_queue"
+
+# Conductor configuration
+conductor:
+  queues:
+    case_upload_completed: "conductor_queue"
+    execution_failed: "conductor_queue" 
+    execution_succeeded: "conductor_queue"
+  
+# Remote executor configuration
+remote_executor:
+  queue_name: "remote_executor_queue"
+  commands:
+    execution_failed: "execution_failed"
+    execution_succeeded: "execution_succeeded"
+
+# Remote command templates
+remote_commands:
+  run_interpreter: "python3 ~/moqui/main_cli.py --rtplan {rtplan_path}"
+  run_moqui_sim: "~/moqui/main --input_dir {in_dir} --gpu_id {gpu_id}"
+  convert_to_dicom: "python3 ~/moqui/raw2dicom.py --input {raw_file}"

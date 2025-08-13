@@ -1,0 +1,224 @@
+# Development configuration for MQI Communicator system
+# Optimized for local development and testing with simplified settings
+
+database:
+  path: "data\\mqi_system_dev.db"
+  backup_path: "data\\backups\\"
+
+# RabbitMQ message queue configuration - Local development
+rabbitmq:
+  url: "amqp://guest:guest@10.255.255.254:5672/?heartbeat=60"
+  max_retries: 3
+  retry_delay_sec: 2
+
+# Case Scanner configuration - Development paths
+scanner:
+  target_directory: "data\\test_cases"
+  scan_interval_sec: 300  # Faster scanning for development
+  file_pattern: "*.dcm"
+  min_file_age_sec: 5   # Shorter stability wait
+  max_scan_depth: 2
+
+# SFTP configuration for file transfer
+sftp:
+  host: "25.2.190.194"
+  port: 22
+  username: "jokh38"
+  private_key_path: "config\\id_rsa"
+
+# SSH configuration for remote execution
+ssh:
+  host: "25.2.190.194"
+  port: 22
+  username: "jokh38"
+  private_key_path: "config\\id_rsa"
+
+# File Transfer configuration - Development settings
+file_transfer:
+  queue_name: file_transfer_queue
+  max_retries: 2
+  retry_delay_sec: 3
+  chunk_size: 65536  # 64KB chunks for testing
+  integrity_check: true
+  compression: false  # Disable compression for faster dev cycles
+  parallel_transfers: 1
+
+# System Curator configuration - Development monitoring
+curator:
+  monitor_interval_sec: 3
+  gpu_monitor_command: "nvidia-smi --query-gpu=index,uuid,utilization.gpu,memory.used,memory.total,temperature.gpu --format=csv,noheader,nounits"
+  alert_thresholds:
+    temperature_max: 90
+    utilization_max: 98
+    memory_max: 95
+
+# Archiver configuration - Development archival
+archiver:
+  queue_name: archiver_queue
+  schedule: "0 */6 * * *"  # Every 6 hours for testing
+  schedule_interval_sec: 21600  # 6 hours in seconds
+  retention_days: 7       # Short retention for development
+  backup_path: "data\\backups\\"
+  archive_directory: "data\\archive\\"
+  backup_schedule: "0 0 * * *"  # Daily backups for development
+  backup_retention_weeks: 2
+  compression_level: 1
+
+# Remote Executor configuration - centralized queue and command settings
+remote_executor:
+  queue_name: remote_executor_queue
+  commands:
+    execution_failed: execution_failed
+
+# Workflow definitions - Simplified for development
+workflows:
+  default_qa:
+    - "run_interpreter"
+    - "run_moqui_sim"
+    - "convert_to_dicom"
+  
+  test_workflow:  # Quick test workflow
+    - "run_moqui_sim"
+
+# Remote command templates - Development paths (mock commands)
+remote_commands:
+  run_interpreter: "python3 scripts/mock_interpreter.py --rtplan {rtplan_path} --output {output_path}"
+  run_moqui_sim: "python3 scripts/mock_moqui_sim.py --input_dir {in_dir} --output_dir {out_dir} --gpu_id {gpu_id}"
+  convert_to_dicom: "python3 scripts/mock_dicom_converter.py --input {raw_file} --output {dicom_file}"
+
+# Logging configuration - Development logging
+logging:
+  level: "DEBUG"
+  format: "%(asctime)s - %(name)s - %(levelname)s - [%(correlation_id)s] - %(funcName)s:%(lineno)d - %(message)s"
+  file_path: "logs\\mqi_dev.log"
+  max_size_mb: 10
+  backup_count: 3
+  rotate_when: "midnight"
+
+# Process management configuration - Development
+processes:
+  conductor:
+    enabled: true
+    workers: 1
+    max_memory_mb: 256
+    restart_delay_sec: 5
+    
+  case_scanner:
+    enabled: true
+    workers: 1
+    max_memory_mb: 128
+    restart_delay_sec: 3
+    
+  file_transfer:
+    enabled: true
+    workers: 1
+    max_memory_mb: 256
+    restart_delay_sec: 5
+    
+  remote_executor:
+    enabled: true
+    workers: 1
+    max_memory_mb: 128
+    restart_delay_sec: 5
+    
+  system_curator:
+    enabled: true
+    workers: 1
+    max_memory_mb: 128
+    restart_delay_sec: 10
+    
+  archiver:
+    enabled: false  # Disable by default in development
+    workers: 1
+    max_memory_mb: 256
+    restart_delay_sec: 15
+    
+  dashboard:
+    enabled: true
+    workers: 1
+    max_memory_mb: 256
+    restart_delay_sec: 10
+
+# Dashboard configuration - Development
+dashboard:
+  enabled: true
+  host: "127.0.0.1"
+  port: 8080
+  log_level: "info"
+  auto_open_browser: true
+  refresh_interval_sec: 3
+
+# Health monitoring configuration - Development
+health:
+  check_interval_sec: 30
+  alert_email: "dev@localhost"
+  alert_thresholds:
+    cpu_percent: 90
+    memory_percent: 90
+    disk_percent: 95
+    queue_depth: 100
+
+# Security configuration - Relaxed for development
+security:
+  enable_ssl: false
+  api_key_required: false
+  session_timeout_minutes: 240  # Longer sessions for development
+
+# Performance tuning - Development optimized
+performance:
+  database_cache_size: "64MB"
+  message_prefetch_count: 5
+  worker_pool_size: 2
+  io_timeout_sec: 60
+
+# Error handling and recovery - Development
+error_handling:
+  max_retry_attempts: 2
+  retry_backoff_multiplier: 1.5
+  dead_letter_retention_days: 1
+  error_notification_enabled: false  # Disable email notifications
+  critical_error_escalation: false
+
+# Development specific settings
+development:
+  mock_remote_commands: true    # Use mock commands instead of real ones
+  skip_gpu_requirements: true   # Allow running without GPUs
+  fast_startup: true           # Skip some initialization checks
+  debug_mode: true             # Enable additional debugging features
+  test_data_generation: true   # Enable test data generation
+  
+# Testing configuration
+testing:
+  use_in_memory_db: false      # Use file-based DB even in tests
+  cleanup_after_tests: true   # Clean up test data
+  mock_external_services: true # Mock SFTP, SSH, etc.
+  generate_test_cases: true    # Auto-generate test cases
+
+# Orchestrator configuration - centralized settings
+orchestrator:
+  restart_wait_time: 1
+  max_retries: 5
+
+# Conductor configuration - centralized queue and path mappings
+conductor:
+  queues:
+    execute_command: remote_executor_queue
+    upload_case: file_transfer_queue
+    download_results: file_transfer_queue
+    case_upload_completed: conductor_queue
+    results_download_completed: conductor_queue
+    execution_failed: conductor_queue
+    download_completed: conductor_queue
+  remote_paths:
+    upload_dir: /remote/upload
+    download_dir: /remote/download
+
+# Messaging configuration - enhanced with retry and DLQ settings
+messaging:
+  max_retries: 3
+
+# Health Monitor configuration - centralized monitor paths
+health_monitor:
+  monitor_paths:
+    - "data"
+    - "logs"

@@ -1,0 +1,182 @@
+# Production configuration for MQI Communicator system
+# Optimized for production deployment with enhanced security and performance
+
+database:
+  path: "/opt/mqi/data/mqi_system.db"
+  backup_path: "/opt/mqi/backups/"
+
+# RabbitMQ message queue configuration - Production server
+rabbitmq:
+  url: "amqp://mqi_user:${RABBITMQ_PASSWORD}@prod-rabbitmq:5672/mqi_vhost"
+  connection_attempts: 5
+  retry_delay: 5
+  heartbeat: 300
+
+# Case Scanner configuration - Production paths
+scanner:
+  target_directory: "/mnt/dicom/incoming"
+  scan_interval_sec: 1800  # More frequent scanning in production
+  file_pattern: "*.dcm"
+  min_file_age_sec: 60  # Wait for file stability
+  max_scan_depth: 3
+
+# SFTP configuration for file transfer - Production HPC
+sftp:
+  host: "hpc-gateway.institution.edu"
+  port: 22
+  username: "mqi_transfer"
+  private_key_path: "/opt/mqi/certs/id_rsa_transfer"
+  host_key_path: "/opt/mqi/certs/known_hosts"
+  timeout: 300
+  max_connections: 5
+
+# SSH configuration for remote execution - Production HPC
+ssh:
+  host: "hpc-compute.institution.edu"
+  port: 22
+  username: "mqi_exec"
+  private_key_path: "/opt/mqi/certs/id_rsa_exec"
+  host_key_path: "/opt/mqi/certs/known_hosts"
+  timeout: 3600  # Longer timeout for production workloads
+  keep_alive: 30
+
+# File Transfer configuration - Production optimizations
+file_transfer:
+  max_retries: 5
+  retry_delay_sec: 10
+  chunk_size: 1048576  # 1MB chunks for large files
+  integrity_check: true
+  compression: true
+  parallel_transfers: 3
+
+# System Curator configuration - Production monitoring
+curator:
+  monitor_interval_sec: 10  # More frequent monitoring
+  gpu_monitor_command: "nvidia-smi --query-gpu=index,uuid,name,utilization.gpu,memory.used,memory.total,temperature.gpu,power.draw --format=csv,noheader,nounits"
+  alert_thresholds:
+    temperature_max: 85
+    utilization_max: 95
+    memory_max: 90
+
+# Archiver configuration - Production archival policy
+archiver:
+  schedule: "0 2 * * *"  # Daily at 2 AM (off-peak hours)
+  retention_days: 365    # Keep data longer in production
+  backup_path: "/mnt/backups/mqi/"
+  backup_schedule: "0 4 * * 0"  # Weekly backups on Sunday at 4 AM
+  backup_retention_weeks: 12
+  compression_level: 6
+
+# Workflow definitions - Production workflows
+workflows:
+  default_qa:
+    - "run_interpreter"
+    - "run_moqui_sim"
+    - "convert_to_dicom"
+    - "quality_check"
+    - "generate_report"
+  
+  urgent_qa:  # Fast-track for urgent cases
+    - "run_moqui_sim"
+    - "convert_to_dicom"
+  
+  research_workflow:
+    - "run_interpreter"
+    - "run_moqui_sim"
+    - "run_analysis"
+    - "convert_to_dicom"
+
+# Remote command templates - Production paths
+remote_commands:
+  run_interpreter: "/opt/moqui/bin/python3 /opt/moqui/scripts/main_cli.py --rtplan {rtplan_path} --output {output_path} --log-level INFO"
+  run_moqui_sim: "/opt/moqui/bin/moqui_sim --input_dir {in_dir} --output_dir {out_dir} --gpu_id {gpu_id} --precision float32 --batch_size 32"
+  convert_to_dicom: "/opt/moqui/bin/python3 /opt/moqui/scripts/raw2dicom.py --input {raw_file} --output {dicom_file} --validate"
+  quality_check: "/opt/moqui/bin/python3 /opt/moqui/scripts/qa_validator.py --input {dicom_file} --report {report_file}"
+  generate_report: "/opt/moqui/bin/python3 /opt/moqui/scripts/report_generator.py --case {case_id} --output {report_path}"
+  run_analysis: "/opt/moqui/bin/python3 /opt/moqui/scripts/dose_analysis.py --input {input_path} --output {analysis_path}"
+
+# Logging configuration - Production logging
+logging:
+  level: "INFO"
+  format: "%(asctime)s - %(name)s - %(levelname)s - [%(correlation_id)s] - %(message)s"
+  file_path: "/var/log/mqi/system.log"
+  max_size_mb: 100
+  backup_count: 10
+  rotate_when: "midnight"
+  
+# Process management configuration
+processes:
+  conductor:
+    enabled: true
+    workers: 1
+    max_memory_mb: 1024
+    restart_delay_sec: 30
+    
+  case_scanner:
+    enabled: true
+    workers: 1
+    max_memory_mb: 512
+    restart_delay_sec: 10
+    
+  file_transfer:
+    enabled: true
+    workers: 2  # Multiple workers for parallel transfers
+    max_memory_mb: 1024
+    restart_delay_sec: 15
+    
+  remote_executor:
+    enabled: true
+    workers: 1
+    max_memory_mb: 512
+    restart_delay_sec: 20
+    
+  system_curator:
+    enabled: true
+    workers: 1
+    max_memory_mb: 256
+    restart_delay_sec: 30
+    
+  archiver:
+    enabled: true
+    workers: 1
+    max_memory_mb: 1024
+    restart_delay_sec: 60
+
+# Health monitoring configuration
+health:
+  check_interval_sec: 60
+  alert_email: "admin@institution.edu"
+  alert_thresholds:
+    cpu_percent: 80
+    memory_percent: 85
+    disk_percent: 90
+    queue_depth: 1000
+  
+# Security configuration
+security:
+  enable_ssl: true
+  ssl_cert_path: "/opt/mqi/certs/server.crt"
+  ssl_key_path: "/opt/mqi/certs/server.key"
+  api_key_required: true
+  session_timeout_minutes: 60
+
+# Performance tuning
+performance:
+  database_cache_size: "256MB"
+  message_prefetch_count: 10
+  worker_pool_size: 4
+  io_timeout_sec: 300
+
+# Error handling and recovery
+error_handling:
+  max_retry_attempts: 3
+  retry_backoff_multiplier: 2
+  dead_letter_retention_days: 7
+  error_notification_enabled: true
+  critical_error_escalation: true
+
+# Maintenance windows
+maintenance:
+  daily_window: "02:00-04:00"  # 2-4 AM daily
+  weekly_window: "SAT 01:00-05:00"  # Saturday 1-5 AM
+  monthly_window: "FIRST SUN 00:00-06:00"  # First Sunday of month

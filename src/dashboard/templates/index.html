@@ -1,0 +1,45 @@
+# File: src/dashboard/templates/index.html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MQI System Dashboard</title>
+    <link rel="stylesheet" href="/static/dashboard.css?v={{ cache_bust }}">
+</head>
+<body>
+    <div class="dashboard-container">
+        <header class="dashboard-header">
+            <h1>MQI System Dashboard</h1>
+            <div id="overall-status">Loading...</div>
+        </header>
+        <div class="dashboard-grid">
+            <div class="panel">
+                <h2>Active Jobs</h2>
+                <pre id="jobs-content" class="loading">Loading...</pre>
+            </div>
+            <div class="panel">
+                <h2>GPU Status</h2>
+                <pre id="gpu-content" class="loading">Loading...</pre>
+            </div>
+            <div class="panel">
+                <h2>Worker Status</h2>
+                <pre id="workers-content" class="loading">Loading...</pre>
+            </div>
+            <div class="panel">
+                <h2>System Health</h2>
+                <pre id="health-content" class="loading">Loading...</pre>
+            </div>
+            <div class="panel">
+                <h2>Recent Activity</h2>
+                <pre id="activity-content" class="loading">Loading...</pre>
+            </div>
+            <div class="panel full-width">
+                <h2>Debug Log</h2>
+                <pre id="debug-log" class="log-panel"></pre>
+            </div>
+        </div>
+    </div>
+    <script src="/static/dashboard.js?v={{ cache_bust }}"></script>
+</body>
+</html>
