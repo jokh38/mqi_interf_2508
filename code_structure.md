@@ -61,22 +61,20 @@ PROCESS_MODULES = {
 }
 ```
 
-### Conductor (`src/conductor/main.py`)
-**Purpose**: Workflow orchestration and state management
-**Dependencies**:
-- `src.common.config_loader` → Configuration loading
-- `src.common.db_utils.DatabaseManager` → Database operations
-- `src.common.messaging.MessageQueue` → Message queue operations
-- `src.common.exceptions` → Error handling
-- `src.conductor.workflow_manager.WorkflowManager` → Workflow logic
+### Conductor (`src/conductor/`)
+**Structure**:
+- `main.py` → Entry point and configuration loading
+- `state_service.py` → Manages the state of the system.
+- `workflow_manager.py` → Workflow logic
 
-### Dashboard (`src/dashboard/main.py`)
-**Purpose**: Provides a web-based dashboard for monitoring the system.
-**Dependencies**:
-- `src.common.config_loader`
-- `src.common.db_utils.DatabaseManager`
-- `src.dashboard.dashboard_seryamlvice`
-- `src.dashboard.data_collector`
+### Dashboard (`src/dashboard/`)
+**Structure**:
+- `main.py` → Entry point
+- `dashboard_service.py` → The main service for the dashboard.
+- `data_collector.py` → Collects data for the dashboard.
+- `static/` → Static files (CSS, JS, images).
+- `templates/` → HTML templates for the dashboard.
+
 
 ## 3. Worker Services Architecture
 
@@ -119,30 +117,31 @@ PROCESS_MODULES = {
 - **`logger.py`**: Centralized logging with database storage
 - **`messaging.py`**: RabbitMQ wrapper for message queue operations
 - **`exceptions.py`**: Custom exception classes
+- **`remote_executor.py`**: Remote command execution utilities.
 - **`ssh_base.py`**: Base SSH functionality for remote operations
+- **`ssh_client_manager.py`**: Manages SSH clients.
 
 ## 5. Testing (`tests/`)
 - **`test_archiver.py`**: Unit tests for the Archiver worker.
 - **`test_case_scanner.py`**: Unit tests for the Case Scanner worker.
 - **`test_conductor.py`**: Unit tests for the Conductor.
+- **`test_dashboard_integration.py`**: Integration tests for the dashboard.
+- **`test_dashboard_with_live_gpu.py`**: Tests for the dashboard with a live GPU.
 - **`test_data_collector.py`**: Unit tests for the Dashboard data collector.
+- **`test_e2e.py`**: End-to-end tests.
 - **`test_file_transfer.py`**: Unit tests for the File Transfer worker.
+- **`test_gpu_connection.py`**: Tests for the GPU connection.
 - **`test_health_monitor.py`**: Unit tests for the Health Monitor.
 - **`test_main_orchestrator.py`**: Unit tests for the Main Orchestrator.
 - **`test_process_manager.py`**: Unit tests for the Process Manager.
+- **`test_rabbitmq_connection.py`**: Tests for the RabbitMQ connection.
 - **`test_remote_executor.py`**: Unit tests for the Remote Executor worker.
 - **`test_system_curator.py`**: Unit tests for the System Curator worker.
 - **`integration/`**: Integration tests for the system.
-    - **`test_complete_workflow.py`**: Tests a complete workflow from start to finish.
-    - **`test_complete_workflow_simple.py`**: A simpler version of the complete workflow test.
-    - **`test_concurrent_processing.py`**: Tests the system's ability to handle concurrent processing.
-    - **`test_failure_recovery.py`**: Tests the system's failure recovery mechanisms.
-    - **`test_performance.py`**: Tests the performance of the system.
-    - **`test_system_coordination.py`**: Tests the coordination between different system components.
 
 ## 6. External Dependencies
 
-### Runtime Requirements (`pyproject.toml`):
+### Runtime Requirements (`requirements.txt`):
 ```
 pika==1.3.1
 paramiko==3.4.0
@@ -165,6 +164,7 @@ black==23.3.0
 ruff==0.1.9
 mypy==1.4.1
 ```
+
 
 ## 7. Usage and Execution
 
