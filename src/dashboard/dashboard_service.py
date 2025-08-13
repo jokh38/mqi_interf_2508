@@ -19,10 +19,10 @@ from .data_collector import DataCollector
 class DashboardService:
     """Main dashboard service using FastAPI."""
 
-    def __init__(self, config: Dict[str, Any]):
+    def __init__(self, config: Dict[str, Any], logger: logging.Logger):
         self.config = config
-        self.logger = logging.getLogger(__name__)
-        self.data_collector = DataCollector(config)
+        self.logger = logger
+        self.data_collector = DataCollector(config, logger)
 
         # Initialize FastAPI app
         self.app = FastAPI(title="MQI System Dashboard")

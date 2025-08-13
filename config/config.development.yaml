@@ -18,6 +18,7 @@ scanner:
   file_pattern: "*.dcm"
   min_file_age_sec: 5   # Shorter stability wait
   max_scan_depth: 2
+  conductor_queue_name: "conductor_queue"
 
 # SFTP configuration for file transfer
 sftp:
