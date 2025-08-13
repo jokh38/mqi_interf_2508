@@ -1,118 +1,84 @@
 
-## **Prompt for AI Codebase Diagnosis & Repair**
+## **Prompt for Centralized Logging, Configuration Enforcement, and Full Runtime Debugging in MQI System**
 
-You are an expert Python software architect and debugger.
-You will receive the following materials:
+You are an expert Python systems architect, refactoring specialist, and debugger.
+You will be given two reference documents:
 
-1. **Full project structure** from `code_structure.md` and `module_structure.md`.
-2. Known runtime issues and logs.
-3. Configuration files and dependency list (provided).
-4. The goal: **systematically detect and fix all runtime and design errors** in a multi-module distributed Python system.
+* **`code_structure.md`** – complete project architecture, directory layout, and execution flow.
+* **`module_structure.md`** – detailed module entry points and dependency contracts.
 
----
+The MQI Interface System is a **distributed, microservice-based Python application** that coordinates multiple independent processes via RabbitMQ and manages state in SQLite.
+Its architectural goals are:
 
-### **System Context**
-
-* The codebase is a **distributed orchestrator/worker/dashboard system** built in Python.
-* Components:
-
-  * **Orchestrator (`src/main_orchestrator.py`)**: Central entry point, launches multiple processes through `ProcessManager`.
-  * **Workers**: `case_scanner`, `file_transfer`, `remote_executor`, `system_curator`, `archiver`.
-  * **Dashboard**: Displays worker & GPU status, job progress.
-  * **Conductor**: Coordinates workflow execution.
-  * **Shared Utilities**: Database manager, messaging (RabbitMQ), config loader, workflow manager, etc.
-* Entry command example:
-
-  ```bash
-  python3 -m src.main_orchestrator config/config.development.yaml
-  ```
-* `PROCESS_MODULES` maps process names to module paths (e.g., `"conductor": "src.conductor.main"`, `"dashboard": "src.dashboard.main"`, etc.).
+1. **Centralized Logging** via `src.common.logger.get_logger` with uniform formatting and routing.
+2. **Centralized Configuration** via `src.common.config_loader.load_config` loading a single YAML config (e.g., `config/config.development.yaml`), passed to all components at startup.
+3. **Systematic Debugging** of runtime and design issues using a structured, multi-stage analysis pipeline.
 
 ---
 
-### **Known Runtime Issues**
+### **Current Problem**
 
-1. **Dashboard worker & GPU status do not update** during execution.
-2. **Case scanner** detects a new case but **no further workflow steps are executed** afterward.
-3. **Only initial execution** was tested — there may be additional errors later in the workflow once execution proceeds.
-4. Suspected root causes include:
+* Many modules still use **local logging** (e.g., `import logging` + `logging.getLogger(__name__)`) instead of the centralized logger.
+* Some modules load configurations independently (e.g., direct YAML read or hardcoded settings) instead of using the shared `load_config` output from the orchestrator.
+* Centralized logging/config was partially introduced, but **code drift** has led to inconsistencies, especially in worker modules and dashboard services.
+* Known runtime issues include:
 
-   * Incorrect `import` paths or wrong function/method names between components.
-   * Calls to modules that are unimplemented or not properly initialized.
-   * Message queue routing key or payload schema mismatches.
-   * Database schema mismatches or transaction issues.
-   * Typos in process/module names (e.g., `dashboard_seryamlvice`).
+  * **Dashboard worker & GPU status not updating** during execution.
+  * **Case scanner** detecting a new case but not triggering downstream workflow steps.
+  * Potential downstream workflow errors after initial execution.
+
+Likely causes include incorrect imports, unimplemented modules, message queue routing mismatches, database schema inconsistencies, and typos in process/module names.
 
 ---
 
 ### **Your Tasks**
 
-Follow this **7-stage analysis pipeline**:
+#### **1. Audit Logging Across All Components**
 
-1. **Project Inventory**
+* Locate every instance of local logger creation or setup outside `src.common.logger`.
+* Identify modules that fail to initialize the central logger or create multiple loggers per process.
 
-   * Build a complete import/module tree from provided files.
-   * Compare actual file locations vs `PROCESS_MODULES` mapping.
-   * Identify missing `__init__.py` files, absolute/relative import inconsistencies.
+#### **2. Audit Configuration Loading**
 
-2. **Static Analysis**
+* Locate all direct YAML/JSON reads, inline configs, or environment-only configs bypassing `load_config`.
+* Identify modules reloading configs independently instead of receiving from the orchestrator.
 
-   * Find **undefined imports**, wrong method/function names, and modules referenced but not implemented.
-   * Detect typos in process/module names.
-   * Extract **message queue contracts** (exchange, queue, routing key, payload schema) and verify that sender/receiver match.
-   * Extract **database access patterns** and check for schema mismatches.
+#### **3. Static & Dynamic Debug Analysis**
 
-3. **Dynamic Analysis**
+Follow a **7-stage pipeline**:
 
-   * Simulate or step through full orchestrator execution and individual worker runs.
-   * Identify initialization sequence issues (e.g., database, message queue, config loader not ready before use).
-   * Trace execution after case scanner detection to see where workflow stalls.
+1. **Project Inventory** – Build a complete import/module tree, compare with `PROCESS_MODULES`, find missing `__init__.py` and import inconsistencies.
+2. **Static Analysis** – Detect undefined imports, wrong function names, message queue contract mismatches, and DB schema issues.
+3. **Dynamic Analysis** – Step through orchestrator and worker execution, identify initialization sequence failures, trace workflow stalls.
+4. **Root Cause Analysis** – For each issue, record file/line, log, likely cause, severity, and impact.
+5. **Fix Proposal** – Provide diff patches with explanations; correct imports, align schemas, repair initialization sequences.
+6. **Test & Verification Plan** – Create unit/integration tests ensuring dashboard updates and workflow continuity.
+7. **Risk & Release Notes** – List breaking changes, migration steps, and rollback instructions.
 
-4. **Root Cause Analysis**
+#### **4. Refactor for Centralized Logging**
 
-   * For each issue, document:
+* Remove local loggers, replace with `get_logger`.
+* Ensure logger initialization happens in each process’s `main.py`.
+* Standardize log formats and levels system-wide.
 
-     * **File & line**
-     * **Observed behavior/log**
-     * **Likely cause**
-     * **Severity & impact**
+#### **5. Refactor for Centralized Configuration**
 
-5. **Fix Proposal**
+* Remove direct config reads; load once in orchestrator and pass down.
+* Ensure `PROCESS_MODULES` receive the orchestrator’s config path/object.
 
-   * Suggest **code changes as diff patches** with explanations.
-   * For unimplemented modules, create temporary stubs with TODO markers.
-   * Correct import paths, fix function names, align message/database schemas, and repair initialization sequences.
+#### **6. Preserve Core Contracts**
 
-6. **Test & Verification Plan**
-
-   * Propose unit & integration test cases for each fix.
-   * Ensure that:
-
-     * Dashboard worker/GPU status updates in real time.
-     * Case scanner detection triggers downstream workflow modules.
-     * All integration tests (e.g., `test_complete_workflow.py`, `test_failure_recovery.py`) pass.
-
-7. **Risk & Release Notes**
-
-   * List breaking changes and migration steps.
-   * Provide rollback instructions.
+* Keep public APIs, `PROCESS_MODULES` mappings, and entry point signatures unless fixing critical inconsistencies.
+* Avoid altering MQ routing keys, DB schema, or business logic unless required for centralization/debugging compliance.
 
 ---
 
-### **Output Format**
+### **Output Requirements**
 
-1. **Issue Table** (Type, File\:Line, Log/Error, Root Cause, Fix Summary, Impact)
-2. **Diff patches** grouped by file with explanations.
-3. **Contract tables** for message queue & database schema (expected vs actual).
-4. **Execution guide** for verifying fixes (commands, expected logs).
-5. **Updated test plan**.
-
----
-
-**Important Notes**
-
-* You must cover **both current known issues** and **potential downstream issues** that will appear after fixing the first errors.
-* Always validate that component contracts (imports, message formats, DB schemas) match across all producers & consumers.
-* Prioritize changes that unblock execution before addressing optimization or refactoring.
-
+1. **Issue Table** – File, Current Behavior, Problem, Root Cause, Recommended Fix, Impact.
+2. **Unified Diff Patches** – Minimal necessary changes grouped per file.
+3. **Contract Tables** – MQ and DB schema expected vs actual.
+4. **Execution Guide** – Commands, expected logs for verifying fixes.
+5. **Before/After Examples** – Logging/config handling before vs after.
+6. **Developer Notes** – How to correctly use central logging/config and debug pipelines.
 
