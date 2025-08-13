@@ -194,24 +194,21 @@ class ProcessManager:
     def _start_local_process(self, process_info: ProcessInfo) -> None:
         """Start a process on the local machine."""
         try:
-            # Build command to start the process
-            cmd = [
-                sys.executable,  # python3
-                '-m', self.PROCESS_MODULES[process_info.name]
-            ]
-            
-            # Set environment variables
-            env = os.environ.copy()
-            
-            if 'config_file_path' in self.config:
-                env['MQI_CONFIG_PATH'] = self.config['config_file_path']
-            else:
+            config_path = self.config.get('config_file_path')
+            if not config_path:
                 self.logger.critical(f"Config path missing for process {process_info.name}. Aborting start.")
                 return
+
+            # Build command to start the process, passing config_path as an argument
+            cmd = [
+                sys.executable,  # python3
+                '-m', self.PROCESS_MODULES[process_info.name],
+                config_path
+            ]
             
+            # No longer need to set environment variables for config
             process = subprocess.Popen(
                 cmd,
-                env=env,
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
                 stdin=subprocess.DEVNULL

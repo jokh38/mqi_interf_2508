@@ -46,8 +46,12 @@ class CaseScannerHandler:
         if 'scan_interval_sec' not in scanner_config:
             raise ConfigurationError("Missing 'scan_interval_sec' in scanner configuration")
         
+        if 'conductor_queue_name' not in scanner_config:
+            raise ConfigurationError("Missing 'conductor_queue_name' in scanner configuration")
+
         self.target_directory = scanner_config['target_directory']
         self.scan_interval_sec = scanner_config['scan_interval_sec']
+        self.conductor_queue_name = scanner_config['conductor_queue_name']
         
         # Initialize database manager for persistent storage
         self.db_manager = DatabaseManager(config['database']['path'])
@@ -106,7 +110,7 @@ class CaseScannerHandler:
         # Publish new_case_found message
         try:
             correlation_id = self.message_queue.publish_message(
-                queue_name='conductor_queue',
+                queue_name=self.conductor_queue_name,
                 command='new_case_found',
                 payload={'case_path': case_path}
             )

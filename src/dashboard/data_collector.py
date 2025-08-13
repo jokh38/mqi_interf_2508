@@ -21,9 +21,9 @@ from src.common.remote_executor import RemoteExecutor
 class DataCollector:
     """Aggregates data from all system sources for the dashboard."""
 
-    def __init__(self, config: Dict[str, Any]):
+    def __init__(self, config: Dict[str, Any], logger: logging.Logger):
         self.config = config
-        self.logger = logging.getLogger(__name__)
+        self.logger = logger
         db_path = config['database']['path']
         self.db_manager = DatabaseManager(db_path)
         self.health_monitor = HealthMonitor(config, self.db_manager, self.logger)
