@@ -4,7 +4,6 @@ DataCollector implementation based on the provided dashboard_plan.md.
 This module integrates strictly with the real system components.
 """
 import asyncio
-import logging
 import time
 from typing import Dict, Any, List, Optional
 from datetime import datetime
@@ -21,7 +20,7 @@ from src.common.remote_executor import RemoteExecutor
 class DataCollector:
     """Aggregates data from all system sources for the dashboard."""
 
-    def __init__(self, config: Dict[str, Any], logger: logging.Logger):
+    def __init__(self, config: Dict[str, Any], logger: Any):
         self.config = config
         self.logger = logger
         db_path = config['database']['path']

@@ -2,18 +2,18 @@
 """
 A simple remote command executor using SSH.
 """
-import logging
 from typing import Dict, Any, Tuple, Optional
 
 from .ssh_client_manager import SSHClientManager
 from .exceptions import RemoteExecutionError
+from .logger import get_logger
 
 class RemoteExecutor:
     """A simple class to execute commands on a remote server via SSH."""
 
     def __init__(self, config: Dict[str, Any]):
         self.config = config
-        self.logger = logging.getLogger(__name__)
+        self.logger = get_logger(__name__)
         self.ssh_manager = SSHClientManager(config)
 
     def execute(self, command: str, timeout: int = 60) -> Tuple[str, str]:

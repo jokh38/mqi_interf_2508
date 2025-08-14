@@ -8,7 +8,6 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 import asyncio
 import json
-import logging
 from typing import Dict, Any, AsyncGenerator
 from pathlib import Path
 import time
@@ -19,7 +18,7 @@ from .data_collector import DataCollector
 class DashboardService:
     """Main dashboard service using FastAPI."""
 
-    def __init__(self, config: Dict[str, Any], logger: logging.Logger):
+    def __init__(self, config: Dict[str, Any], logger: Any):
         self.config = config
         self.logger = logger
         self.data_collector = DataCollector(config, logger)
@@ -41,13 +40,13 @@ class DashboardService:
         if static_dir.exists():
             self.app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
         else:
-            logging.warning("Static directory not found: %s", static_dir)
+            self.logger.warning("Static directory not found: %s", static_dir)
 
         if templates_dir.exists():
             self.templates = Jinja2Templates(directory=str(templates_dir))
         else:
             self.templates = None
-            logging.warning("Templates directory not found: %s", templates_dir)
+            self.logger.warning("Templates directory not found: %s", templates_dir)
 
     def setup_routes(self):
         """Setup all API routes."""

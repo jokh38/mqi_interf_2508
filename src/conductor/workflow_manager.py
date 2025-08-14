@@ -5,10 +5,10 @@ Handles workflow orchestration, message routing, and state transitions
 for the medical physics QA workflow.
 """
 
-import logging
 from typing import Dict, Any, Optional
 from src.common.db_utils import DatabaseManager
 from src.common.exceptions import ResourceUnavailableError, MQIError
+from src.common.logger import get_logger
 from src.conductor.state_service import StateService
 
 
@@ -26,7 +26,7 @@ class WorkflowManager:
         self.db_manager = db_manager
         self.config = config
         self.state_service = StateService(db_manager)
-        self.logger = logging.getLogger(__name__)
+        self.logger = get_logger(__name__)
         
         # Will be set by main.py when message queue is initialized
         self.publisher = None

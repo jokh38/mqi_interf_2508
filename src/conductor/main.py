@@ -8,12 +8,13 @@ The Conductor orchestrates the entire MQI workflow by:
 - Handling error recovery
 """
 
-import logging
+import os
 from typing import Dict, Any
 from src.common.config_loader import load_config
 from src.common.db_utils import DatabaseManager
 from src.common.messaging import MessageQueue
 from src.common.exceptions import ConfigurationError
+from src.common.logger import get_logger
 from .workflow_manager import WorkflowManager
 
 
@@ -60,7 +61,7 @@ class ConductorMain:
         # Initialize message queue (will be set up in start())
         self.message_queue = None
         
-        self.logger = logging.getLogger(__name__)
+        self.logger = get_logger(__name__)
     
     def _validate_config(self):
         """Validate required configuration parameters."""

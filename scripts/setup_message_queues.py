@@ -9,7 +9,6 @@ required for inter-service communication.
 import os
 import sys
 import argparse
-import logging
 import pika
 from pika import exceptions
 
@@ -17,10 +16,10 @@ from pika import exceptions
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
 from src.common.config_loader import load_config
+from src.common.logger import get_logger
 
 # Set up logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class MessageQueueSetup:
