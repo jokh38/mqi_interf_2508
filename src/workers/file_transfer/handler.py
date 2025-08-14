@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Dict, Any
 from datetime import datetime
 
-from src.common.messaging import MessageQueue
+from src.common.messaging import MessageBroker
 from src.common.logger import get_logger
 from src.common.db_utils import DatabaseManager
 from src.common.exceptions import NetworkError, DataIntegrityError, ConfigurationError
@@ -20,17 +20,17 @@ from src.workers.file_transfer.sftp_service import SftpService
 class FileTransferHandler:
     """Handler for file transfer messages."""
     
-    def __init__(self, config: Dict[str, Any], message_queue: MessageQueue, db_manager: DatabaseManager):
+    def __init__(self, config: Dict[str, Any], message_broker: MessageBroker, db_manager: DatabaseManager):
         """
         Initialize file transfer handler.
         
         Args:
             config: Configuration dictionary
-            message_queue: Message queue instance
+            message_broker: Message broker instance
             db_manager: Database manager instance
         """
         self.config = config
-        self.message_queue = message_queue
+        self.message_broker = message_broker
         self.db_manager = db_manager
         
         # Use the passed-in db_manager for the logger
@@ -95,7 +95,7 @@ class FileTransferHandler:
             
             # Send error response to conductor queue for malformed messages
             try:
-                self.message_queue.publish_message(
+                self.message_broker.publish(
                     queue_name=self.conductor_queue,
                     command='malformed_message',
                     payload={
@@ -130,14 +130,15 @@ class FileTransferHandler:
             if not payload.get(field):
                 self.logger.error(f"Missing required field '{field}' for {operation} operation", 
                                 extra={'correlation_id': correlation_id})
-                self._publish_failure_message(
-                    "file_transfer_failed",
-                    {
+                self.message_broker.publish(
+                    queue_name=self.conductor_queue,
+                    command="file_transfer_failed",
+                    payload={
                         "error": f"Missing required field: {field}",
                         "operation": operation,
                         "payload": payload
                     },
-                    correlation_id
+                    correlation_id=correlation_id
                 )
                 return False
         
@@ -146,14 +147,15 @@ class FileTransferHandler:
             if not isinstance(payload.get(field), str):
                 self.logger.error(f"Invalid data type for '{field}': expected str, got {type(payload.get(field)).__name__}",
                                 extra={'correlation_id': correlation_id})
-                self._publish_failure_message(
-                    "file_transfer_failed",
-                    {
+                self.message_broker.publish(
+                    queue_name=self.conductor_queue,
+                    command="file_transfer_failed",
+                    payload={
                         "error": f"Invalid data type for '{field}': expected str, got {type(payload.get(field)).__name__}",
                         "operation": operation,
                         "case_id": payload.get('case_id')
                     },
-                    correlation_id
+                    correlation_id=correlation_id
                 )
                 return False
                 
@@ -423,7 +425,7 @@ class FileTransferHandler:
     def _publish_success_message(self, command: str, payload: Dict[str, Any], correlation_id: str) -> None:
         """Publish success message to conductor queue."""
         try:
-            self.message_queue.publish_message(
+            self.message_broker.publish(
                 queue_name=self.conductor_queue,
                 command=command,
                 payload=payload,
@@ -437,7 +439,7 @@ class FileTransferHandler:
     def _publish_failure_message(self, command: str, payload: Dict[str, Any], correlation_id: str) -> None:
         """Publish failure message to conductor queue with DLQ support."""
         try:
-            self.message_queue.publish_message(
+            self.message_broker.publish(
                 queue_name=self.conductor_queue,
                 command=command,
                 payload=payload,
@@ -455,7 +457,7 @@ class FileTransferHandler:
         
         try:
             queue_name = self.config.get('file_transfer', {}).get('queue_name', 'file_transfer_queue')
-            self.message_queue.consume_messages(
+            self.message_broker.consume(
                 queue_name=queue_name,
                 callback=self.on_message_received
             )

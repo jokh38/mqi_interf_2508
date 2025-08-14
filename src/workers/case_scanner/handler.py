@@ -6,6 +6,7 @@ messaging operations.
 """
 
 import time
+import os
 from typing import Dict, Any, Set
 from src.common.exceptions import ConfigurationError, DatabaseError
 from src.common.messaging import MessageBroker
@@ -107,12 +108,15 @@ class CaseScannerHandler:
         """
         self.logger.info(f"New case found: {case_path}")
         
+        # Extract case_id from the path
+        case_id = os.path.basename(os.path.normpath(case_path))
+
         # Publish new_case_found message
         try:
             correlation_id = self.message_broker.publish(
                 queue_name=self.conductor_queue_name,
                 command='new_case_found',
-                payload={'case_path': case_path}
+                payload={'case_id': case_id}
             )
         except Exception as e:
             self.logger.error(f"Failed to publish new_case_found message for case '{case_path}': {e}")

@@ -52,29 +52,40 @@ def update_resource_status(db_manager: DatabaseManager, gpu_metrics: List[Dict[s
                     row = cursor.fetchone()
                     
                 if row is None:
-                    logger.warning(f"GPU ID {gpu_id} (UUID: {gpu_uuid}) not found in database, skipping update")
-                    continue
-                
-                # Update GPU metrics
-                # Always update both ID and UUID for consistency
-                cursor.execute("""
-                    UPDATE gpu_resources 
-                    SET gpu_utilization = ?, 
-                        memory_used_mb = ?, 
-                        memory_total_mb = ?, 
-                        temperature_c = ?, 
-                        last_updated = ?,
-                        uuid = COALESCE(?, uuid)
-                    WHERE gpu_id = ?
-                """, (
-                    gpu_data['utilization'],
-                    gpu_data['memory_used_mb'],
-                    gpu_data['memory_total_mb'],
-                    gpu_data['temperature_c'],
-                    current_timestamp,
-                    gpu_uuid,
-                    gpu_id
-                ))
+                    # If GPU not found, insert a new record
+                    logger.info(f"New GPU detected: ID {gpu_id} (UUID: {gpu_uuid}), adding to database.")
+                    cursor.execute("""
+                        INSERT INTO gpu_resources (gpu_id, uuid, status, gpu_utilization, memory_used_mb, memory_total_mb, temperature_c, last_updated)
+                        VALUES (?, ?, 'available', ?, ?, ?, ?, ?)
+                    """, (
+                        gpu_id,
+                        gpu_uuid,
+                        gpu_data['utilization'],
+                        gpu_data['memory_used_mb'],
+                        gpu_data['memory_total_mb'],
+                        gpu_data['temperature_c'],
+                        current_timestamp
+                    ))
+                else:
+                    # Update existing GPU metrics
+                    cursor.execute("""
+                        UPDATE gpu_resources
+                        SET gpu_utilization = ?,
+                            memory_used_mb = ?,
+                            memory_total_mb = ?,
+                            temperature_c = ?,
+                            last_updated = ?,
+                            uuid = COALESCE(?, uuid)
+                        WHERE gpu_id = ?
+                    """, (
+                        gpu_data['utilization'],
+                        gpu_data['memory_used_mb'],
+                        gpu_data['memory_total_mb'],
+                        gpu_data['temperature_c'],
+                        current_timestamp,
+                        gpu_uuid,
+                        gpu_id
+                    ))
                 
                 logger.debug(f"Updated GPU {gpu_id} metrics: "
                            f"utilization={gpu_data['utilization']}%, "
