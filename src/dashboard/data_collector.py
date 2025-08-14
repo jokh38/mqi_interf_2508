@@ -113,7 +113,6 @@ class DataCollector:
             for live_gpu in live_metrics:
                 gpu_id = live_gpu['gpu_id']
                 live_data = {
-                    'name': live_gpu['name'],
                     'utilization': live_gpu['utilization'],
                     'memory_used_mb': live_gpu['memory_used_mb'],
                     'memory_total_mb': live_gpu['memory_total_mb'],

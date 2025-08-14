@@ -32,9 +32,10 @@ class WorkflowManager:
         self.publisher = None
         
         # Get workflow configuration
-        self.workflow_steps = config.get('workflows', {}).get('default_qa', [])
+        self.workflow_steps = config.get('workflows.default_qa', [])
+        remote_commands_dict = config.get('remote_commands', {})
         self.remote_commands = {
-            step: config.get('remote_commands', {}).get(step, '')
+            step: remote_commands_dict.get(step, '')
             for step in self.workflow_steps
         }
     
@@ -47,7 +48,7 @@ class WorkflowManager:
             payload: Message payload data
             correlation_id: Correlation ID for tracking
         """
-        self.logger.info(f"Handling message: {message_type}, correlation_id: {correlation_id}")
+        self.logger.info(f"Handling message: {message_type}, correlation_id: {correlation_id}, payload: {payload}")
         
         try:
             if message_type == 'new_case_found':
@@ -64,7 +65,7 @@ class WorkflowManager:
                 self.logger.warning(f"Unknown message type: {message_type}")
         
         except Exception as e:
-            self.logger.error(f"Error handling message {message_type}: {e}")
+            self.logger.error(f"Error handling message {message_type}: {e}", exc_info=True)
             if 'case_id' in payload:
                 self.handle_workflow_failure(payload['case_id'], str(e))
     
@@ -79,10 +80,11 @@ class WorkflowManager:
         
         # Check if case already exists (duplicate prevention)
         if not self.state_service.is_new_case(case_id):
-            self.logger.info(f"Case {case_id} already exists, skipping")
+            self.logger.warning(f"Case {case_id} already exists, skipping")
             return
         
         # Create new case record
+        self.logger.info(f"Creating new case record for {case_id}")
         self.state_service.update_case_status(case_id, 'QUEUED', 'New case detected')
         
         # Start workflow by advancing to first step
@@ -95,14 +97,19 @@ class WorkflowManager:
         Args:
             case_id: Case identifier to advance
         """
+        self.logger.info(f"Advancing workflow for case: {case_id}")
         current_status = self.state_service.get_case_current_status(case_id)
         if not current_status:
             self.logger.error(f"Cannot advance workflow: Case {case_id} not found")
             return
         
+        self.logger.info(f"Current status for case {case_id} is {current_status}")
+
         # Determine next step based on current workflow step, not status
         current_workflow_step = self.state_service.get_case_workflow_step(case_id)
+        self.logger.info(f"Current workflow step for case {case_id} is {current_workflow_step}")
         next_step = self._get_next_workflow_step(current_workflow_step)
+        self.logger.info(f"Next workflow step for case {case_id} is {next_step}")
         
         if next_step is None:
             # Workflow is complete
@@ -114,6 +121,7 @@ class WorkflowManager:
             return
         
         # Try to reserve GPU for the next step
+        self.logger.info(f"Attempting to reserve GPU for case {case_id}")
         try:
             gpu_id = self.state_service.reserve_available_gpu(case_id)
             self.logger.info(f"Reserved GPU {gpu_id} for case {case_id}")
@@ -128,7 +136,7 @@ class WorkflowManager:
             
         except ResourceUnavailableError as e:
             # No GPUs available, put in waiting state
-            self.logger.info(f"No GPUs available for case {case_id}: {e}")
+            self.logger.warning(f"No GPUs available for case {case_id}: {e}")
             self.state_service.update_case_status(
                 case_id, 'PENDING_RESOURCE', 'Waiting for available GPU'
             )
