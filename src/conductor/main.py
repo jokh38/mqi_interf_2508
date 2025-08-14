@@ -65,7 +65,7 @@ class ConductorMain:
         # Initialize scheduler
         self.scheduler = BackgroundScheduler()
 
-        self.logger = get_logger(__name__)
+        self.logger = get_logger('conductor', self.db_manager)
 
     def _validate_config(self):
         """Validate required configuration parameters."""
