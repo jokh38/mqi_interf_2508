@@ -169,13 +169,67 @@ class ProcessManager:
         
     def _initialize_processes(self) -> None:
         """Initialize process information for enabled processes."""
-        for name, process_config in self.config['processes'].items():
-            if process_config.get('enabled', True):
-                if name not in self.PROCESS_MODULES:
-                    self.logger.warning(f"Unknown process type: {name}")
-                    continue
+        with self._lock:
+            # Load existing process statuses from DB
+            try:
+                rows = self.db_manager.execute_query("SELECT process_name, pid, is_remote, host FROM process_status")
+                db_pids = {row['process_name']: row for row in rows}
+            except Exception as e:
+                self.logger.warning(f"Could not load process status from DB, starting fresh. Error: {e}")
+                db_pids = {}
+
+            for name, process_config in self.config['processes'].items():
+                if process_config.get('enabled', True):
+                    if name not in self.PROCESS_MODULES:
+                        self.logger.warning(f"Unknown process type: {name}")
+                        continue
+
+                    self.processes[name] = ProcessInfo(name, process_config)
                     
-                self.processes[name] = ProcessInfo(name, process_config)
+                    # If we have a PID from the DB, populate it
+                    if name in db_pids:
+                        db_info = db_pids[name]
+                        # A bit of a check to see if the host matches for remote processes
+                        is_remote = self.hpc_config.get('enabled', False) and process_config.get('remote', False)
+                        if is_remote and self.hpc_config.get('host') == db_info['host']:
+                            self.processes[name].remote_pid = db_info['pid']
+                            self.logger.info(f"Loaded existing remote PID {db_info['pid']} for process {name}")
+                        elif not is_remote:
+                            self.processes[name].remote_pid = db_info['pid']
+                            self.logger.info(f"Loaded existing local PID {db_info['pid']} for process {name}")
+
+    def _update_process_status_in_db(self, process_info: ProcessInfo):
+        """Update the process status in the database."""
+        if process_info.remote_pid is None:
+            return
+
+        is_remote = self.hpc_config.get('enabled', False) and process_info.config.get('remote', False)
+        host = self.hpc_config.get('host') if is_remote else 'localhost'
+
+        try:
+            with self.db_manager.transaction() as conn:
+                conn.execute("""
+                    INSERT OR REPLACE INTO process_status (process_name, pid, is_remote, last_updated, host)
+                    VALUES (?, ?, ?, ?, ?)
+                """, (
+                    process_info.name,
+                    process_info.remote_pid,
+                    is_remote,
+                    datetime.now().isoformat(),
+                    host
+                ))
+            self.logger.debug(f"Updated process status in DB for {process_info.name} with PID {process_info.remote_pid}")
+        except Exception as e:
+            self.logger.error(f"Failed to update process status in DB for {process_info.name}: {e}")
+
+    def _clear_process_status_in_db(self, process_info: ProcessInfo):
+        """Clear the process status from the database."""
+        try:
+            with self.db_manager.transaction() as conn:
+                conn.execute("DELETE FROM process_status WHERE process_name = ?", (process_info.name,))
+            self.logger.debug(f"Cleared process status in DB for {process_info.name}")
+        except Exception as e:
+            self.logger.error(f"Failed to clear process status in DB for {process_info.name}: {e}")
                 
     def _start_process(self, process_info: ProcessInfo) -> None:
         """
@@ -214,6 +268,7 @@ class ProcessManager:
                 stdin=subprocess.DEVNULL
             )
             process_info.remote_pid = process.pid
+            self._update_process_status_in_db(process_info)
             
             self.logger.info(f"Started local process {process_info.name} with PID {process.pid}")
             
@@ -241,6 +296,7 @@ class ProcessManager:
             
             if pid_str.isdigit():
                 process_info.remote_pid = int(pid_str)
+                self._update_process_status_in_db(process_info)
                 self.logger.info(f"Started remote process {process_info.name} with PID {process_info.remote_pid}")
             else:
                 error_output = stderr.read().decode().strip()
@@ -288,6 +344,7 @@ class ProcessManager:
         except Exception as e:
             self.logger.error(f"Error stopping process {process_info.name}: {e}")
         finally:
+            self._clear_process_status_in_db(process_info)
             process_info.remote_pid = None
             
     def _stop_remote_process(self, process_info: ProcessInfo, timeout: int):
@@ -314,6 +371,7 @@ class ProcessManager:
         except Exception as e:
             self.logger.error(f"Error stopping remote process {process_info.name}: {e}")
         finally:
+            self._clear_process_status_in_db(process_info)
             process_info.remote_pid = None
             
     def start_all_processes(self) -> None:

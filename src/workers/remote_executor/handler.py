@@ -9,7 +9,7 @@ import json
 from typing import Dict, Any
 from datetime import datetime
 from src.common.exceptions import ConfigurationError, RemoteExecutionError
-from src.common.messaging import MessageQueue
+from src.common.messaging import MessageBroker
 from src.common.logger import get_logger
 from src.common.db_utils import DatabaseManager
 from src.workers.remote_executor.ssh_service import execute
@@ -18,20 +18,20 @@ from src.workers.remote_executor.ssh_service import execute
 class RemoteExecutorHandler:
     """Handler for Remote Executor operations."""
     
-    def __init__(self, config: Dict[str, Any], message_queue: MessageQueue, db_manager: DatabaseManager):
+    def __init__(self, config: Dict[str, Any], message_broker: MessageBroker, db_manager: DatabaseManager):
         """
         Initialize Remote Executor Handler.
         
         Args:
             config: Configuration dictionary
-            message_queue: Message queue instance for publishing messages
+            message_broker: Message broker instance for publishing messages
             db_manager: Database manager instance
             
         Raises:
             ConfigurationError: If required configuration is missing
         """
         self.config = config
-        self.message_queue = message_queue
+        self.message_broker = message_broker
         self.db_manager = db_manager
         
         # Use the passed-in db_manager for the logger
@@ -105,7 +105,7 @@ class RemoteExecutorHandler:
             
             # Send error response to conductor queue for malformed messages
             try:
-                self.message_queue.publish_message(
+                self.message_broker.publish(
                     queue_name=self.conductor_queue,
                     command='malformed_message',
                     payload={
@@ -146,7 +146,7 @@ class RemoteExecutorHandler:
                 
                 # Publish success message
                 success_cmd = self.config.get('remote_executor', {}).get('commands', {}).get('execution_succeeded', 'execution_succeeded')
-                self.message_queue.publish_message(
+                self.message_broker.publish(
                     queue_name=self.conductor_queue,
                     command=success_cmd,
                     payload={
@@ -160,7 +160,7 @@ class RemoteExecutorHandler:
                 
             except RemoteExecutionError as e:
                 # Publish failure message
-                self.message_queue.publish_message(
+                self.message_broker.publish(
                     queue_name=self.conductor_queue,
                     command=self.execution_failed_cmd,
                     payload={
@@ -184,13 +184,13 @@ class RemoteExecutorHandler:
         """
         Start listening for messages.
         
-        This method starts the message queue consumer loop to process
+        This method starts the message broker consumer loop to process
         incoming execute_command messages.
         """
         self.logger.info("Starting Remote Executor message consumer")
         
         try:
-            self.message_queue.consume_messages(
+            self.message_broker.consume(
                 queue_name=self.remote_executor_queue,
                 callback=self.on_message_received
             )
@@ -216,7 +216,7 @@ class RemoteExecutorHandler:
                 'error': error_message,
                 'timestamp': datetime.utcnow().isoformat()
             }
-            self.message_queue.publish_message(
+            self.message_broker.publish(
                 queue_name=self.conductor_queue,
                 command=self.execution_failed_cmd,
                 payload=failure_payload,

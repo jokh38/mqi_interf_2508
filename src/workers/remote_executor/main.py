@@ -9,7 +9,7 @@ import os
 from pathlib import Path
 
 from src.common.config_loader import load_config
-from src.common.messaging import MessageQueue
+from src.common.messaging import MessageBroker
 from src.common.logger import get_logger
 from src.common.db_utils import DatabaseManager
 from src.common.exceptions import ConfigurationError
@@ -18,7 +18,7 @@ from src.workers.remote_executor.handler import RemoteExecutorHandler
 
 def main(config_path: str):
     """Main entry point for Remote Executor worker."""
-    message_queue = None
+    message_broker = None
     db_manager = None
     logger = None  # Initialize logger to None for broader scope in finally
     
@@ -35,14 +35,14 @@ def main(config_path: str):
         # Initialize a DB-aware logger
         logger = get_logger('remote_executor', db_manager=db_manager)
         
-        # Initialize message queue
+        # Initialize message broker
         rabbitmq_params = config.get('rabbitmq')
         if not rabbitmq_params:
             raise ConfigurationError("RabbitMQ configuration not found.")
-        message_queue = MessageQueue(rabbitmq_params, config, db_manager)
+        message_broker = MessageBroker(rabbitmq_params, config, db_manager)
         
         # Initialize and run handler
-        handler = RemoteExecutorHandler(config, message_queue, db_manager)
+        handler = RemoteExecutorHandler(config, message_broker, db_manager)
         handler.run()
         
     except ConfigurationError as e:
@@ -63,12 +63,12 @@ def main(config_path: str):
             print(f"Unexpected error: {e}")
         sys.exit(1)
     finally:
-        if message_queue is not None:
+        if message_broker is not None:
             try:
-                message_queue.close()
+                message_broker.close()
             except Exception as e:
                 if logger:
-                    logger.error(f"Error closing message queue during cleanup: {e}")
+                    logger.error(f"Error closing message broker during cleanup: {e}")
         
         if db_manager is not None:
             try:

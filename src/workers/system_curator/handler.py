@@ -4,7 +4,7 @@ Handles system_monitor messages by collecting GPU metrics and updating database.
 """
 
 from typing import Dict, Any
-from src.common.messaging import MessageQueue
+from src.common.messaging import MessageBroker
 from src.common.logger import get_logger
 from src.common.db_utils import DatabaseManager
 from src.common.exceptions import ConfigurationError, RemoteExecutionError, DatabaseError
@@ -15,20 +15,20 @@ from src.workers.system_curator.db_service import update_resource_status
 class SystemCuratorHandler:
     """Handler for system curator messages."""
     
-    def __init__(self, config: Dict[str, Any], message_queue: MessageQueue, db_manager: DatabaseManager):
+    def __init__(self, config: Dict[str, Any], message_broker: MessageBroker, db_manager: DatabaseManager):
         """
         Initialize system curator handler.
         
         Args:
             config: Configuration dictionary
-            message_queue: Message queue instance
+            message_broker: Message broker instance
             db_manager: Database manager instance
             
         Raises:
             ConfigurationError: If required configuration is missing or invalid
         """
         self.config = config
-        self.message_queue = message_queue
+        self.message_broker = message_broker
         self.db_manager = db_manager
         
         # Use the passed-in db_manager for the logger
@@ -117,13 +117,13 @@ class SystemCuratorHandler:
         """
         Start listening for messages.
         
-        This method starts the message queue consumer loop to process
+        This method starts the message broker consumer loop to process
         incoming system_monitor messages.
         """
         self.logger.info("Starting System Curator message consumer")
         
         try:
-            self.message_queue.consume_messages(
+            self.message_broker.consume(
                 queue_name='system_curator_queue',
                 callback=self.on_message_received
             )

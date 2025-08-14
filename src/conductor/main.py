@@ -13,7 +13,7 @@ from typing import Dict, Any
 from apscheduler.schedulers.background import BackgroundScheduler
 from src.common.config_loader import load_config
 from src.common.db_utils import DatabaseManager
-from src.common.messaging import MessageQueue
+from src.common.messaging import MessageBroker
 from src.common.exceptions import ConfigurationError
 from src.common.logger import get_logger
 from .workflow_manager import WorkflowManager
@@ -59,8 +59,8 @@ class ConductorMain:
         # Initialize workflow manager
         self.workflow_manager = WorkflowManager(self.db_manager, self.config)
 
-        # Initialize message queue (will be set up in start())
-        self.message_queue = None
+        # Initialize message broker (will be set up in start())
+        self.message_broker = None
         
         # Initialize scheduler
         self.scheduler = BackgroundScheduler()
@@ -84,21 +84,21 @@ class ConductorMain:
         """Start the Conductor service."""
         self.logger.info("Starting MQI Conductor...")
         try:
-            # Initialize message queue
+            # Initialize message broker
             mq_config = self.config.get('rabbitmq', {})
-            self.message_queue = MessageQueue(mq_config)
-            self.message_queue.connect()
+            self.message_broker = MessageBroker(mq_config, self.config.config, self.db_manager)
+            self.message_broker.connect()
 
             # Set up publisher for workflow manager
             class MessagePublisher:
-                def __init__(self, message_queue, config):
-                    self.mq = message_queue
+                def __init__(self, broker, config):
+                    self.broker = broker
                     self.config = config
 
                 def publish(self, command, payload, correlation_id=None):
                     # Route to appropriate queue based on command
                     queue_name = self._get_queue_for_command(command)
-                    return self.mq.publish_message(queue_name, command, payload, correlation_id)
+                    return self.broker.publish(queue_name, command, payload, correlation_id)
 
                 def _get_queue_for_command(self, command):
                     # Use centralized queue configuration
@@ -116,14 +116,14 @@ class ConductorMain:
                     }
                     return command_queue_map.get(command, queues_config.get('conductor', 'conductor_queue'))
 
-            self.workflow_manager.publisher = MessagePublisher(self.message_queue, self.config)
+            self.workflow_manager.publisher = MessagePublisher(self.message_broker, self.config)
             
             # Schedule system tasks
             self._schedule_system_tasks()
 
             # Start consuming messages
             conductor_queue_name = self.config.get('queues', {}).get('conductor', 'conductor_queue')
-            self.message_queue.consume_messages(conductor_queue_name, self._message_callback)
+            self.message_broker.consume(conductor_queue_name, self._message_callback)
 
             self.logger.info("Conductor started successfully")
         except Exception as e:
@@ -136,8 +136,8 @@ class ConductorMain:
         try:
             if self.scheduler.running:
                 self.scheduler.shutdown()
-            if self.message_queue:
-                self.message_queue.close()
+            if self.message_broker:
+                self.message_broker.close()
             self.db_manager.close()
             self.logger.info("Conductor stopped successfully")
         except Exception as e:

@@ -75,8 +75,8 @@ class DataCollector:
         db_gpus = []
         try:
             db_gpus = await asyncio.to_thread(self.db_manager.execute_query, """
-                SELECT gpu_id, uuid, status, reserved_by_case_id, utilization_percent, 
-                       memory_mb as memory_used_mb, temperature_celsius, last_updated
+                SELECT gpu_id, uuid, status, reserved_by_case_id, gpu_utilization as utilization_percent,
+                       memory_used_mb, memory_total_mb, temperature_c, last_updated
                 FROM gpu_resources
                 ORDER BY gpu_id
             """)
