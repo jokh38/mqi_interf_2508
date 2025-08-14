@@ -3,17 +3,18 @@
 Manages SSH connections using paramiko.
 """
 import paramiko
-import logging
 from contextlib import contextmanager
 from typing import Dict, Any, Generator
 import os
+
+from .logger import get_logger
 
 class SSHClientManager:
     """Manages SSH connections."""
 
     def __init__(self, config: Dict[str, Any]):
         self.ssh_config = config.get('ssh', {})
-        self.logger = logging.getLogger(__name__)
+        self.logger = get_logger(__name__)
         if not self.ssh_config:
             raise ValueError("SSH configuration is missing in the config file.")
 

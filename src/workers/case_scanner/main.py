@@ -9,7 +9,7 @@ import os
 from pathlib import Path
 
 from src.common.config_loader import load_config
-from src.common.messaging import MessageQueue
+from src.common.messaging import MessageBroker
 from src.common.logger import get_logger
 from src.common.db_utils import DatabaseManager
 from src.common.exceptions import ConfigurationError
@@ -18,7 +18,7 @@ from src.workers.case_scanner.handler import CaseScannerHandler
 
 def main(config_path: str):
     """Main entry point for Case Scanner worker."""
-    message_queue = None
+    message_broker = None
     db_manager = None
     logger = None  # Initialize logger to None for broader scope in finally
     
@@ -39,10 +39,14 @@ def main(config_path: str):
         rabbitmq_params = config.get('rabbitmq')
         if not rabbitmq_params:
             raise ConfigurationError("RabbitMQ configuration not found.")
-        message_queue = MessageQueue(rabbitmq_params, config, db_manager)
+
+        # Use the centralized MessageBroker
+        connection_params = {'url': rabbitmq_params['url']}
+        message_broker = MessageBroker(connection_params, config, db_manager)
+        message_broker.connect()
         
         # Initialize and run handler
-        handler = CaseScannerHandler(config, message_queue)
+        handler = CaseScannerHandler(config, message_broker)
         handler.run()
         
     except ConfigurationError as e:
@@ -63,12 +67,12 @@ def main(config_path: str):
             print(f"Unexpected error: {e}")
         sys.exit(1)
     finally:
-        if message_queue is not None:
+        if message_broker is not None:
             try:
-                message_queue.close()
+                message_broker.close()
             except Exception as e:
                 if logger:
-                    logger.error(f"Error closing message queue during cleanup: {e}")
+                    logger.error(f"Error closing message broker during cleanup: {e}")
         
         if db_manager is not None:
             try:

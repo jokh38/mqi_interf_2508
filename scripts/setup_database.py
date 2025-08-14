@@ -45,6 +45,7 @@ class DatabaseSetup:
         self._create_case_history_table()
         self._create_gpu_resources_table()
         self._create_logs_table()
+        self._create_process_status_table()
         
         # Archive tables
         self._create_archived_cases_table()
@@ -120,6 +121,18 @@ class DatabaseSetup:
                 level TEXT NOT NULL CHECK(level IN ('DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL')),
                 correlation_id TEXT,
                 message TEXT NOT NULL
+            )
+        ''')
+
+    def _create_process_status_table(self):
+        """Create the process_status table."""
+        self.connection.execute('''
+            CREATE TABLE IF NOT EXISTS process_status (
+                process_name TEXT PRIMARY KEY,
+                pid INTEGER,
+                is_remote BOOLEAN NOT NULL,
+                last_updated TEXT NOT NULL,
+                host TEXT
             )
         ''')
     

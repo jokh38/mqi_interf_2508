@@ -4,13 +4,13 @@ SFTP service for file transfer operations.
 
 import os
 import stat
-import logging
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Dict, Any, Optional, Generator
 from paramiko import SFTPClient
 
 from src.common.exceptions import NetworkError, DataIntegrityError
+from src.common.logger import get_logger
 from src.common.ssh_base import SSHConnectionManager
 from src.workers.file_transfer.utils import calculate_local_checksum, calculate_remote_checksum, calculate_directory_checksum
 
@@ -27,7 +27,7 @@ class SftpService(SSHConnectionManager):
         """
         super().__init__(config)
         self._sftp_client: Optional[SFTPClient] = None
-        self.logger = logging.getLogger(__name__)
+        self.logger = get_logger(__name__)
     
     def __enter__(self):
         """Context manager entry."""

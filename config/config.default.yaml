@@ -35,6 +35,7 @@ processes:
 scanner:
   target_directory: "data\\scan_directory"
   scan_interval_sec: 1800
+  conductor_queue_name: "conductor_queue"
 
 # SFTP configuration for file transfer
 sftp:
@@ -94,6 +95,7 @@ queues:
 
 # Conductor configuration
 conductor:
+  monitor_interval_sec: 60
   queues:
     case_upload_completed: "conductor_queue"
     execution_failed: "conductor_queue" 

@@ -6,10 +6,11 @@ import sqlite3
 import threading
 import atexit
 import weakref
-import logging
 from contextlib import contextmanager
 from typing import Optional, Set, Dict
+
 from .exceptions import DatabaseError
+from .logger import get_logger
 
 
 class DatabaseManager:
@@ -22,7 +23,7 @@ class DatabaseManager:
         self._init_lock = threading.Lock()  # Lock for table initialization
         self._all_connections: Set[sqlite3.Connection] = set()
         self._thread_connections: Dict[int, sqlite3.Connection] = {}
-        self.logger = logging.getLogger(__name__)
+        self.logger = get_logger(__name__)
         self._tables_initialized = False
         
         # Register cleanup handler for process termination

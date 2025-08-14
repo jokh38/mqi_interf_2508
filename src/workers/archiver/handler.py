@@ -4,7 +4,7 @@ Handles archive_data messages by performing archiving and database backup operat
 """
 
 from typing import Dict, Any
-from src.common.messaging import MessageQueue
+from src.common.messaging import MessageBroker
 from src.common.logger import get_logger
 from src.common.db_utils import DatabaseManager
 from src.common.exceptions import ConfigurationError, DatabaseError
@@ -14,20 +14,20 @@ from src.workers.archiver.archiver_service import archive_old_data, backup_datab
 class ArchiverHandler:
     """Handler for archiver messages."""
     
-    def __init__(self, config: Dict[str, Any], message_queue: MessageQueue, db_manager: DatabaseManager):
+    def __init__(self, config: Dict[str, Any], message_broker: MessageBroker, db_manager: DatabaseManager):
         """
         Initialize archiver handler.
         
         Args:
             config: Configuration dictionary
-            message_queue: Message queue instance
+            message_broker: Message broker instance
             db_manager: Database manager instance
             
         Raises:
             ConfigurationError: If required configuration is missing
         """
         self.config = config
-        self.message_queue = message_queue
+        self.message_broker = message_broker
         self.db_manager = db_manager
         
         # Use the passed-in db_manager for the logger
@@ -125,14 +125,14 @@ class ArchiverHandler:
         """
         Start listening for messages.
         
-        This method starts the message queue consumer loop to process
+        This method starts the message broker consumer loop to process
         incoming archive_data messages.
         """
         self.logger.info("Starting Archiver message consumer")
         
         try:
             queue_name = self.config.get('queues', {}).get('archiver', 'archiver_queue')
-            self.message_queue.consume_messages(
+            self.message_broker.consume(
                 queue_name=queue_name,
                 callback=self.on_message_received
             )
