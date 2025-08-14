@@ -8,7 +8,7 @@ messaging operations.
 import time
 from typing import Dict, Any, Set
 from src.common.exceptions import ConfigurationError, DatabaseError
-from src.common.messaging import MessageQueue
+from src.common.messaging import MessageBroker
 from src.common.logger import get_logger
 from src.common.db_utils import DatabaseManager
 from src.workers.case_scanner.scanner_service import scan_directory
@@ -17,19 +17,19 @@ from src.workers.case_scanner.scanner_service import scan_directory
 class CaseScannerHandler:
     """Handler for Case Scanner operations."""
     
-    def __init__(self, config: Dict[str, Any], message_queue: MessageQueue):
+    def __init__(self, config: Dict[str, Any], message_broker: MessageBroker):
         """
         Initialize Case Scanner Handler.
         
         Args:
             config: Configuration dictionary
-            message_queue: Message queue instance for publishing messages
+            message_broker: Message broker instance for publishing messages
             
         Raises:
             ConfigurationError: If required configuration is missing
         """
         self.config = config
-        self.message_queue = message_queue
+        self.message_broker = message_broker
         
         # Validate configuration
         if 'scanner' not in config:
@@ -109,7 +109,7 @@ class CaseScannerHandler:
         
         # Publish new_case_found message
         try:
-            correlation_id = self.message_queue.publish_message(
+            correlation_id = self.message_broker.publish(
                 queue_name=self.conductor_queue_name,
                 command='new_case_found',
                 payload={'case_path': case_path}

@@ -391,8 +391,8 @@ class ProcessManager:
                 
                 process_status = {
                     'name': name,
-                    'running': process_info.is_running(),
-                    'pid': process_info.process.pid if process_info.process else None,
+                    'running': process_info.is_running(self.ssh_client),
+                    'pid': process_info.remote_pid,
                     'restart_count': process_info.restart_count,
                     'last_restart': datetime.fromtimestamp(process_info.last_restart).isoformat() 
                                    if process_info.last_restart else None,
@@ -410,14 +410,17 @@ class ProcessManager:
         """
         with self._lock:
             for name, process_info in self.processes.items():
-                if process_info.process and not process_info.is_running():
+                # Check if a process was running (had a PID) but is not running anymore.
+                if process_info.remote_pid is not None and not process_info.is_running(self.ssh_client):
                     # Process has failed
-                    exit_code = process_info.process.returncode
                     process_info.consecutive_failures += 1
                     
-                    self.logger.warning(f"Process {name} failed with exit code {exit_code} "
-                                      f"(consecutive_failures: {process_info.consecutive_failures})")
+                    self.logger.warning(f"Process {name} (PID: {process_info.remote_pid}) is no longer running. "
+                                      f"Consecutive failures: {process_info.consecutive_failures}")
                     
+                    # The PID is now invalid, so clear it.
+                    process_info.remote_pid = None
+
                     # Check if process should be restarted
                     if not process_info.should_restart():
                         process_info.is_failed_permanently = True
@@ -432,7 +435,7 @@ class ProcessManager:
                         time.time() - process_info.last_restart > backoff_delay):
                         
                         self.logger.info(f"Restarting failed process {name} "
-                                       f"(exit_code: {exit_code}, restart_count: {process_info.restart_count}, "
+                                       f"(restart_count: {process_info.restart_count}, "
                                        f"backoff_delay: {backoff_delay:.1f}s)")
                         # Note: restart_process already acquires lock, but RLock allows re-entry
                         self.restart_process(name)
@@ -441,8 +444,8 @@ class ProcessManager:
                         self.logger.debug(f"Process {name} restart delayed, waiting {time_remaining:.1f}s more "
                                         f"(exponential backoff: {backoff_delay:.1f}s)")
                 
-                elif process_info.process and process_info.is_running():
-                    # Process is running successfully, reset consecutive failures
+                # If the process is running, reset its failure count.
+                elif process_info.remote_pid is not None and process_info.is_running(self.ssh_client):
                     if process_info.consecutive_failures > 0:
                         self.logger.info(f"Process {name} running successfully, resetting failure count")
                         process_info.consecutive_failures = 0
