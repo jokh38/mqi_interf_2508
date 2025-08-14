@@ -64,6 +64,10 @@ class WorkflowManager:
             else:
                 self.logger.warning(f"Unknown message type: {message_type}")
         
+        except (KeyError, TypeError) as e:
+            self.logger.error(f"Invalid message format for {message_type}: {e}", exc_info=True)
+            if 'case_id' in payload:
+                self.handle_workflow_failure(payload['case_id'], f"Invalid message format: {e}")
         except Exception as e:
             self.logger.error(f"Error handling message {message_type}: {e}", exc_info=True)
             if 'case_id' in payload:
@@ -171,7 +175,10 @@ class WorkflowManager:
         """
         # If no current workflow step, start with first step
         if current_workflow_step is None:
-            return self.workflow_steps[0] if self.workflow_steps else None
+            if not self.workflow_steps:
+                self.logger.warning("Workflow steps are not defined.")
+                return None
+            return self.workflow_steps[0]
         
         # Find current step and return next step
         try:

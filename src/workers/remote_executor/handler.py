@@ -175,10 +175,10 @@ class RemoteExecutorHandler:
         except (ConfigurationError, RemoteExecutionError) as e:
             self.logger.error(f"Remote execution error handling message: {e}")
             # Publish failure message with correlation_id parameter
-            self._publish_failure_message(str(e), correlation_id)
+            self._publish_failure_message(str(e), correlation_id, payload)
         except Exception as e:
             self.logger.error(f"Unexpected error handling message: {e}")
-            self._publish_failure_message(f"Unexpected error: {str(e)}", correlation_id)
+            self._publish_failure_message(f"Unexpected error: {str(e)}", correlation_id, payload)
     
     def run(self):
         """
@@ -203,18 +203,20 @@ class RemoteExecutorHandler:
             self.logger.error(f"Unexpected error in Remote Executor: {e}")
             raise
     
-    def _publish_failure_message(self, error_message: str, correlation_id: str):
+    def _publish_failure_message(self, error_message: str, correlation_id: str, payload: Dict[str, Any]):
         """Publish failure message to the messaging system.
         
         Args:
             error_message: Error message to publish
             correlation_id: Correlation ID for tracing
+            payload: The original payload that caused the failure
         """
         try:
             failure_payload = {
                 'status': 'failed',
                 'error': error_message,
-                'timestamp': datetime.utcnow().isoformat()
+                'timestamp': datetime.utcnow().isoformat(),
+                'original_payload': payload
             }
             self.message_broker.publish(
                 queue_name=self.conductor_queue,

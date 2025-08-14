@@ -125,39 +125,10 @@ class FileTransferHandler:
         """
         required_fields = ['local_path', 'remote_path', 'case_id']
         
-        # Check for missing fields
+        # Check for missing or invalid fields
         for field in required_fields:
-            if not payload.get(field):
-                self.logger.error(f"Missing required field '{field}' for {operation} operation", 
-                                extra={'correlation_id': correlation_id})
-                self.message_broker.publish(
-                    queue_name=self.conductor_queue,
-                    command="file_transfer_failed",
-                    payload={
-                        "error": f"Missing required field: {field}",
-                        "operation": operation,
-                        "payload": payload
-                    },
-                    correlation_id=correlation_id
-                )
-                return False
-        
-        # Check field types
-        for field in required_fields:
-            if not isinstance(payload.get(field), str):
-                self.logger.error(f"Invalid data type for '{field}': expected str, got {type(payload.get(field)).__name__}",
-                                extra={'correlation_id': correlation_id})
-                self.message_broker.publish(
-                    queue_name=self.conductor_queue,
-                    command="file_transfer_failed",
-                    payload={
-                        "error": f"Invalid data type for '{field}': expected str, got {type(payload.get(field)).__name__}",
-                        "operation": operation,
-                        "case_id": payload.get('case_id')
-                    },
-                    correlation_id=correlation_id
-                )
-                return False
+            if not payload.get(field) or not isinstance(payload.get(field), str):
+                raise ValueError(f"Missing or invalid '{field}' field in payload")
                 
         return True
     
@@ -221,13 +192,25 @@ class FileTransferHandler:
             payload: Message payload containing local_path and remote_path
             correlation_id: Correlation ID for tracing
         """
-        # Use consolidated validation
-        if not self._validate_payload_fields(payload, "upload", correlation_id):
-            return  # Validation method already handles error reporting
-        
-        local_path = payload.get('local_path')
-        remote_path = payload.get('remote_path')
-        case_id = payload.get('case_id')
+        try:
+            # Use consolidated validation
+            self._validate_payload_fields(payload, "upload", correlation_id)
+
+            local_path = payload.get('local_path')
+            remote_path = payload.get('remote_path')
+            case_id = payload.get('case_id')
+        except ValueError as e:
+            self.logger.error(f"Invalid payload for upload case: {e}", extra={'correlation_id': correlation_id})
+            self._publish_failure_message(
+                "file_transfer_failed",
+                {
+                    "error": str(e),
+                    "operation": "upload",
+                    "payload": payload
+                },
+                correlation_id
+            )
+            return
         
         self.logger.info(f"Starting case upload: {case_id} from {local_path} to {remote_path}", extra={'correlation_id': correlation_id})
         
@@ -270,13 +253,25 @@ class FileTransferHandler:
             payload: Message payload containing local_path and remote_path
             correlation_id: Correlation ID for tracing
         """
-        # Use consolidated validation
-        if not self._validate_payload_fields(payload, "download", correlation_id):
-            return  # Validation method already handles error reporting
-        
-        local_path = payload.get('local_path')
-        remote_path = payload.get('remote_path')
-        case_id = payload.get('case_id')
+        try:
+            # Use consolidated validation
+            self._validate_payload_fields(payload, "download", correlation_id)
+
+            local_path = payload.get('local_path')
+            remote_path = payload.get('remote_path')
+            case_id = payload.get('case_id')
+        except ValueError as e:
+            self.logger.error(f"Invalid payload for download results: {e}", extra={'correlation_id': correlation_id})
+            self._publish_failure_message(
+                "file_transfer_failed",
+                {
+                    "error": str(e),
+                    "operation": "download",
+                    "payload": payload
+                },
+                correlation_id
+            )
+            return
         
         self.logger.info(f"Starting results download: {case_id} from {remote_path} to {local_path}", extra={'correlation_id': correlation_id})
         

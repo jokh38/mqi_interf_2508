@@ -35,6 +35,8 @@ class SystemCuratorHandler:
         self.logger = get_logger('system_curator', self.db_manager)
         
         self._validate_config()
+
+        self.system_curator_queue = config.get('queues', {}).get('system_curator', 'system_curator_queue')
         
         self.logger.info("System Curator Handler initialized")
     
@@ -124,7 +126,7 @@ class SystemCuratorHandler:
         
         try:
             self.message_broker.consume(
-                queue_name='system_curator_queue',
+                queue_name=self.system_curator_queue,
                 callback=self.on_message_received
             )
         except KeyboardInterrupt:

@@ -73,9 +73,7 @@ class SftpService(SSHConnectionManager):
                 return self._sftp_client
             except Exception as e:
                 # Connection lost, log and create new one
-                host = self.config.get('host', 'unknown')
-                port = self.config.get('port', 22)
-                self.logger.warning(f"SFTP connection test failed for {host}:{port}, reconnecting: {e}")
+                self.logger.warning(f"SFTP connection test failed for {self.host}:{self.port}, reconnecting: {e}")
                 self._close_sftp()
         
         try:
