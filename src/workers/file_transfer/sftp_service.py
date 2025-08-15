@@ -11,95 +11,68 @@ from paramiko import SFTPClient
 
 from src.common.exceptions import NetworkError, DataIntegrityError
 from src.common.logger import get_logger
-from src.common.ssh_base import SSHConnectionManager
+from src.common.ssh_base import SSHManager
 from src.workers.file_transfer.utils import calculate_local_checksum, calculate_remote_checksum, calculate_directory_checksum
 
 
-class SftpService(SSHConnectionManager):
+class SftpService(SSHManager):
     """Service for handling SFTP file transfers with integrity verification."""
-    
-    def __init__(self, config: Dict[str, Any]):
+
+    def __init__(self, config: Dict[str, Any], db_manager=None):
         """
         Initialize SFTP service with configuration.
         
         Args:
-            config: SFTP configuration containing host, port, username, private_key_path
+            config: SFTP configuration.
+            db_manager: Database manager for logging.
         """
-        super().__init__(config)
+        super().__init__(config, db_manager)
         self._sftp_client: Optional[SFTPClient] = None
-        self.logger = get_logger(__name__)
-    
+        self.logger = get_logger(__name__, db_manager)
+
     def __enter__(self):
         """Context manager entry."""
         return self
-    
+
     def __exit__(self, exc_type, exc_val, exc_tb):
         """Context manager exit with resource cleanup."""
         self.close()
         return False
-    
+
     @contextmanager
     def sftp_connection(self) -> Generator[SFTPClient, None, None]:
-        """Context manager for SFTP connections with automatic cleanup."""
-        sftp_client = None
+        """Context manager for SFTP connections."""
         try:
-            sftp_client = self._get_sftp_client()
-            yield sftp_client
+            yield self._get_sftp_client()
         except Exception as e:
             self.logger.error(f"SFTP operation failed: {e}")
+            self.close() # Close connections on failure
             raise
-        finally:
-            # Don't close the cached client, just ensure it's in good state
-            if sftp_client and sftp_client != self._sftp_client:
-                try:
-                    sftp_client.close()
-                except (OSError, Exception) as e:
-                    self.logger.debug(f"Error closing temporary SFTP client: {e}")
-    
+
     def _get_sftp_client(self) -> SFTPClient:
         """
-        Create and return an SFTP connection object.
-        
-        Returns:
-            Active SFTP client
-            
-        Raises:
-            NetworkError: If connection fails
+        Get or create an SFTP connection. Reuses an existing connection if active.
         """
         if self._sftp_client:
-            try:
-                # Test connection with minimal operation
-                self._sftp_client.listdir('.')
-                return self._sftp_client
-            except Exception as e:
-                # Connection lost, log and create new one
-                host = self.config.get('host', 'unknown')
-                port = self.config.get('port', 22)
-                self.logger.warning(f"SFTP connection test failed for {host}:{port}, reconnecting: {e}")
-                self._close_sftp()
-        
-        try:
-            # Use base class SSH connection
-            ssh_client = self._connect()
-            
-            # Create SFTP client
+            channel = self._sftp_client.get_channel()
+            if channel:
+                transport = channel.get_transport()
+                if transport and transport.is_active():
+                    return self._sftp_client
+
+        self.logger.info("SFTP client not active. Creating a new one.")
+        with self.get_persistent_connection() as ssh_client:
             self._sftp_client = ssh_client.open_sftp()
-            
-            if self._sftp_client is None:
-                raise NetworkError("Failed to create SFTP client")
-            
             return self._sftp_client
-            
-        except Exception as e:
-            raise NetworkError(f"Failed to establish SFTP connection: {e}")
-    
+
     def _close_sftp(self):
-        """Close SFTP connection if active."""
+        """Close the SFTP client if it's active."""
         if self._sftp_client:
             try:
                 self._sftp_client.close()
-            except (OSError, Exception) as e:
-                self.logger.debug(f"Error closing SFTP client: {e}")
+                self.logger.info("SFTP client closed.")
+            except Exception as e:
+                self.logger.warning(f"Error closing SFTP client: {e}")
             finally:
                 self._sftp_client = None
     
@@ -311,28 +284,17 @@ class SftpService(SSHConnectionManager):
         """Check if remote directory exists without using exceptions for control flow."""
         try:
             stat_info = sftp_client.stat(remote_path)
-            return stat.S_ISDIR(stat_info.st_mode)
+            return stat_info.st_mode is not None and stat.S_ISDIR(stat_info.st_mode)
         except Exception:
             return False
     
-    def _close_connections(self):
-        """Close SFTP and SSH connections."""
-        if self._sftp_client:
-            try:
-                self._sftp_client.close()
-            except Exception as e:
-                self.logger.warning(f"Error closing SFTP client: {e}")
-            finally:
-                self._sftp_client = None
-        
-        if hasattr(self, '_ssh_client') and self._ssh_client:
-            try:
-                self._ssh_client.close()
-            except Exception as e:
-                self.logger.warning(f"Error closing SSH client: {e}")
-            finally:
-                self._ssh_client = None
-    
+    def close(self):
+        """
+        Close the SFTP client and the underlying SSH connection.
+        """
+        self._close_sftp()
+        super().close()
+
     def is_remote_dir(self, remote_path: str) -> bool:
         """
         Check if a remote path is a directory without raising exceptions.
@@ -346,11 +308,7 @@ class SftpService(SSHConnectionManager):
         try:
             with self.sftp_connection() as sftp_client:
                 file_stat = sftp_client.stat(remote_path)
-                return stat.S_ISDIR(file_stat.st_mode)
+                return file_stat.st_mode is not None and stat.S_ISDIR(file_stat.st_mode)
         except Exception as e:
             self.logger.debug(f"Failed to check if {remote_path} is directory: {e}")
             return False
-    
-    def close(self):
-        """Close all connections."""
-        self._close_connections()

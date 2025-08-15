@@ -9,7 +9,6 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime
 
 from src.common.db_utils import DatabaseManager
-from src.common.config_loader import load_config
 from src.health_monitor import HealthMonitor
 from src.process_manager import ProcessManager
 from src.workers.system_curator.monitor_service import fetch_gpu_metrics

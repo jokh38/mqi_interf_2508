@@ -3,7 +3,6 @@ Entry point for running the dashboard service with uvicorn.
 """
 import sys
 import uvicorn
-from typing import Dict, Any
 
 from src.common.config_loader import load_config, ConfigurationError
 from src.common.db_utils import DatabaseManager

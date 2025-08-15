@@ -60,8 +60,8 @@ All workers share a similar structure, with a `main.py` entry point that initial
 
 | Worker            | Entry Point                               | Handler Class             | Key Dependencies                                      |
 |-------------------|-------------------------------------------|---------------------------|-------------------------------------------------------|
-| **case_scanner**  | `src/workers/case_scanner/main.py`        | `CaseScannerHandler`      | `load_config`, `MessageQueue`, `DatabaseManager`      |
-| **file_transfer** | `src/workers/file_transfer/main.py`       | `FileTransferHandler`     | `load_config`, `MessageQueue`, `DatabaseManager`      |
-| **remote_executor**| `src/workers/remote_executor/main.py`     | `RemoteExecutorHandler`   | `load_config`, `MessageQueue`, `DatabaseManager`      |
-| **system_curator**| `src/workers/system_curator/main.py`      | `SystemCuratorHandler`    | `load_config`, `MessageQueue`, `DatabaseManager`      |
-| **archiver**      | `src/workers/archiver/main.py`            | `ArchiverHandler`         | `load_config`, `MessageQueue`, `DatabaseManager`      |
+| **case_scanner**  | `src/workers/case_scanner/main.py`        | `CaseScannerHandler`      | `load_config`, `MessageBroker`, `DatabaseManager`, `scanner_service` |
+| **file_transfer** | `src/workers/file_transfer/main.py`       | `FileTransferHandler`     | `load_config`, `MessageBroker`, `DatabaseManager`, `sftp_service` |
+| **remote_executor**| `src/workers/remote_executor/main.py`     | `RemoteExecutorHandler`   | `load_config`, `MessageBroker`, `DatabaseManager`, `ssh_service` |
+| **system_curator**| `src/workers/system_curator/main.py`      | `SystemCuratorHandler`    | `load_config`, `MessageBroker`, `DatabaseManager`, `monitor_service`, `db_service` |
+| **archiver**      | `src/workers/archiver/main.py`            | `ArchiverHandler`         | `load_config`, `MessageBroker`, `DatabaseManager`, `archiver_service` |

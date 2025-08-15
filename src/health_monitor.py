@@ -61,6 +61,7 @@ class HealthMonitor:
         self.monitor_thread: Optional[threading.Thread] = None
         self.last_health_status: Optional[Dict[str, Any]] = None
         self._db_counter_lock = threading.Lock()
+        self._db_check_counter: int = 0
         
     def start_monitoring(self) -> None:
         """Start health monitoring in background thread."""
@@ -265,7 +266,7 @@ class HealthMonitor:
         """Get database performance metrics using lightweight queries."""
         try:
             # Basic database metrics
-            metrics = {
+            metrics: Dict[str, Any] = {
                 'connected': True,
                 'response_time_ms': 0
             }
@@ -280,14 +281,10 @@ class HealthMonitor:
             
             # Only get record count occasionally (every 10th check) to reduce load
             with self._db_counter_lock:
-                if hasattr(self, '_db_check_counter'):
-                    self._db_check_counter += 1
-                else:
-                    self._db_check_counter = 1
-                
+                self._db_check_counter += 1
                 check_counter = self._db_check_counter
                 
-            if check_counter % 10 == 0:
+            if check_counter % 10 == 1:
                 try:
                     # Get approximate row count from sqlite_stat1 if available (much faster)
                     stat_result = self.db_manager.execute_query(
@@ -295,13 +292,14 @@ class HealthMonitor:
                     )
                     if stat_result:
                         # Parse the first number from the stat string (approximate row count)
-                        stat_str = stat_result[0].get('stat', '0')
+                        stat_str: str = stat_result[0].get('stat', '0')
                         case_count = int(stat_str.split()[0]) if stat_str and stat_str.split() else 0
                         metrics['case_count_approx'] = case_count
                     else:
                         # Fallback to exact count only if stat table doesn't exist
                         count_result = self.db_manager.execute_query("SELECT COUNT(*) as count FROM cases")
-                        metrics['case_count'] = count_result[0]['count'] if count_result else 0
+                        if count_result:
+                            metrics['case_count'] = int(count_result[0]['count'])
                 except Exception as count_e:
                     self.logger.debug(f"Could not get case count: {count_e}")
                     metrics['case_count_error'] = str(count_e)

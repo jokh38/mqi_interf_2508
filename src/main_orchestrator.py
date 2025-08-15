@@ -48,7 +48,7 @@ class MainOrchestrator:
         self.running = False
         self.start_time: Optional[datetime] = None
         self.system_monitor_interval = self.config.get('curator', {}).get('monitor_interval_sec', 60)
-        self.last_system_monitor_time = 0
+        self.last_system_monitor_time = 0.0
         
         # Register signal handlers for graceful shutdown
         signal.signal(signal.SIGTERM, self._signal_handler)
@@ -151,7 +151,7 @@ class MainOrchestrator:
                 current_time = time.time()
                 
                 # Check if it's time to send system_monitor message
-                if current_time - self.last_system_monitor_time >= self.system_monitor_interval:
+                if self.message_broker and current_time - self.last_system_monitor_time >= self.system_monitor_interval:
                     try:
                         queue_name = self.config.get('queues', {}).get('system_curator', 'system_curator_queue')
                         self.message_broker.publish(

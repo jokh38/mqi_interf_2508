@@ -6,7 +6,6 @@ as a message-driven service.
 """
 
 import sys
-import os
 from src.common.config_loader import load_config
 from src.common.messaging import MessageBroker
 from src.common.logger import get_logger

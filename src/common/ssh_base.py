@@ -1,156 +1,137 @@
 """
-Base SSH connection manager for reuse across workers.
+Unified SSH connection manager for reuse across workers.
+This module provides a comprehensive SSH manager that supports both
+persistent and transient (short-lived) connections.
 """
 
+import os
 import paramiko
 from typing import Dict, Any, Generator, Optional
 from contextlib import contextmanager
 
-from .exceptions import NetworkError, format_connection_error
+from .exceptions import NetworkError, ConfigurationError, format_connection_error
 from .logger import get_logger
 
 
-class SSHConnectionManager:
-    """Base SSH connection manager with common functionality."""
-    
+class SSHManager:
+    """
+    Unified SSH connection manager with support for persistent and transient connections.
+    """
+
     def __init__(self, config: Dict[str, Any], db_manager=None):
         """
-        Initialize SSH connection manager.
-        
+        Initialize SSH manager.
+        The configuration can be a flat dictionary or nested under an 'ssh' key.
         Args:
-            config: SSH configuration containing host, port, username, private_key_path
-            db_manager: Database manager instance for logging (optional)
+            config: SSH configuration.
+            db_manager: Database manager instance for logging (optional).
         """
-        self.host = config.get('host')
-        self.port = config.get('port', 22)
-        self.username = config.get('username')  # Standardized field name
-        self.private_key_path = config.get('private_key_path')
-        self.timeout = config.get('timeout', 30)
-        
-        # Initialize logger with database manager
+        ssh_config = config.get('ssh', config)
+
+        self.host = ssh_config.get('host')
+        self.port = ssh_config.get('port', 22)
+        self.username = ssh_config.get('username')
+        self.private_key_path = ssh_config.get('private_key_path')
+        self.timeout = ssh_config.get('timeout', 30)
+
         self.logger = get_logger(__name__, db_manager)
-        
-        if not all([self.host, self.username]):
-            raise NetworkError("Missing required SSH configuration: host, username")
-        
-        self._ssh_client: Optional[paramiko.SSHClient] = None
-    
+
+        if not all([self.host, self.username, self.private_key_path]):
+            raise ConfigurationError("Missing required SSH config: host, username, or private_key_path.")
+
+        self._resolve_key_path()
+
+        self._persistent_client: Optional[paramiko.SSHClient] = None
+
+    def _resolve_key_path(self):
+        """Resolves the private key path to an absolute path."""
+        if not os.path.isabs(self.private_key_path):
+            # Assumes the path is relative to the project root if not absolute.
+            # The project root is assumed to be two levels up from this file's directory.
+            project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+            self.private_key_path = os.path.join(project_root, self.private_key_path)
+
+        if not os.path.exists(self.private_key_path):
+            raise ConfigurationError(f"SSH private key not found at: {self.private_key_path}")
+
     def _create_ssh_client(self) -> paramiko.SSHClient:
-        """
-        Create and configure SSH client.
-        
-        Returns:
-            Configured SSH client
-        """
-        ssh_client = paramiko.SSHClient()
-        ssh_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        return ssh_client
-    
-    def _connect(self) -> paramiko.SSHClient:
-        """
-        Establish SSH connection.
-        
-        Returns:
-            Connected SSH client
-            
-        Raises:
-            NetworkError: If connection fails
-        """
-        if self._ssh_client:
-            try:
-                # Test existing connection
-                transport = self._ssh_client.get_transport()
-                if transport and transport.is_active():
-                    return self._ssh_client
-            except Exception:
-                # Connection lost, create new one
-                self._close_connection()
-        
+        """Creates and configures a new SSH client instance."""
+        client = paramiko.SSHClient()
+        client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        return client
+
+    def _connect(self, client: paramiko.SSHClient) -> None:
+        """Establishes a connection using the provided client."""
         try:
-            self._ssh_client = self._create_ssh_client()
-            
             connect_kwargs = {
                 'hostname': self.host,
                 'port': self.port,
                 'username': self.username,
+                'key_filename': self.private_key_path,
                 'timeout': self.timeout
             }
-            
-            if self.private_key_path:
-                connect_kwargs['key_filename'] = self.private_key_path
-            
             self.logger.info(f"Connecting to {self.username}@{self.host}:{self.port}")
-            self._ssh_client.connect(**connect_kwargs)
+            client.connect(**connect_kwargs)
             self.logger.info("SSH connection established")
-            
-            if self._ssh_client is None:
-                raise NetworkError("Failed to establish SSH connection")
-            
-            return self._ssh_client
-            
+        except paramiko.AuthenticationException as e:
+            self.logger.error(f"SSH Authentication Failed for {self.username}@{self.host}. Check credentials. Error: {e}")
+            raise NetworkError(f"SSH Authentication Failed: {e}")
         except Exception as e:
             message = format_connection_error("SSH", str(e), self.host)
+            self.logger.error(message)
             raise NetworkError(message)
-    
-    def _close_connection(self):
-        """Close SSH connection if active."""
-        if self._ssh_client is not None:
-            try:
-                self._ssh_client.close()
-            except Exception as e:
-                self.logger.warning(f"Error closing SSH connection: {e}")
-            finally:
-                self._ssh_client = None
-    
+
     @contextmanager
-    def get_connection(self) -> Generator[paramiko.SSHClient, None, None]:
+    def get_transient_connection(self) -> Generator[paramiko.SSHClient, None, None]:
         """
-        Context manager for SSH connection.
-        
-        ⚠️ WARNING - NON-STANDARD BEHAVIOR ⚠️
-        This context manager intentionally does NOT close the connection when 
-        exiting the context. The connection is kept alive for reuse across 
-        multiple operations to improve performance.
-        
-        USAGE GUIDE:
-        - Use this when you need multiple SSH operations in sequence
-        - The connection will be automatically reused for subsequent calls
-        - Call close() explicitly when done with all SSH operations
-        - Connection is automatically tested and recreated if stale
-        
-        Example:
-            ssh_manager = SSHConnectionManager(config)
-            
-            # Multiple operations using the same connection
-            with ssh_manager.get_connection() as ssh:
-                stdin, stdout, stderr = ssh.exec_command("command1")
-            
-            with ssh_manager.get_connection() as ssh:  # Reuses same connection
-                stdin, stdout, stderr = ssh.exec_command("command2")
-            
-            # Clean up when completely done
-            ssh_manager.close()
-        
+        Provides a transient SSH connection that is automatically closed on exit.
+        Ideal for single, isolated operations.
         Yields:
-            SSH client connection
+            A connected paramiko.SSHClient instance.
         """
         client = None
         try:
-            client = self._connect()
+            client = self._create_ssh_client()
+            self._connect(client)
             yield client
-        except Exception as e:
-            # If an error occurs, close the potentially corrupted connection
-            if client is not None:
-                try:
-                    client.close()
-                except Exception:
-                    pass  # Ignore errors during cleanup
-            self._ssh_client = None
-            raise
         finally:
-            # Keep connection alive for reuse, don't close here unless error occurred
-            pass
-    
+            if client:
+                client.close()
+                self.logger.debug("Transient SSH connection closed.")
+
+    @contextmanager
+    def get_persistent_connection(self) -> Generator[paramiko.SSHClient, None, None]:
+        """
+        Provides a persistent SSH connection that is reused across multiple calls.
+        The connection is NOT closed on exiting the context. Call close() explicitly.
+        Yields:
+            A connected paramiko.SSHClient instance.
+        """
+        try:
+            transport = self._persistent_client.get_transport() if self._persistent_client else None
+            if not transport or not transport.is_active():
+                self.logger.info("No active persistent SSH client found. Creating a new one.")
+                self._persistent_client = self._create_ssh_client()
+                self._connect(self._persistent_client)
+
+            if self._persistent_client is None:
+                # This should not be reachable due to the logic above, but it satisfies mypy
+                raise NetworkError("Failed to create a persistent SSH client.")
+
+            yield self._persistent_client
+        except Exception as e:
+            self.logger.error(f"Failed to provide persistent SSH connection: {e}")
+            # Ensure a failed client is cleaned up
+            self.close()
+            raise
+
     def close(self):
-        """Close connection and cleanup resources."""
-        self._close_connection()
+        """Closes the persistent SSH connection if it is active."""
+        if self._persistent_client:
+            try:
+                self._persistent_client.close()
+                self.logger.info("Persistent SSH connection closed.")
+            except Exception as e:
+                self.logger.warning(f"Error closing persistent SSH connection: {e}")
+            finally:
+                self._persistent_client = None
