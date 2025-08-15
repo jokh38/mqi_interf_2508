@@ -7,7 +7,7 @@ database:
 
 # RabbitMQ message queue configuration - Local development
 rabbitmq:
-  url: "amqp://guest:guest@10.255.255.254:5672/?heartbeat=60"
+  url: "amqp://guest:guest@localhost:5672/?heartbeat=60"
   max_retries: 3
   retry_delay_sec: 2
 
@@ -22,14 +22,14 @@ scanner:
 
 # SFTP configuration for file transfer
 sftp:
-  host: "25.2.190.194"
+  host: "10.243.62.128"
   port: 22
   username: "jokh38"
   private_key_path: "config\\id_rsa"
 
 # SSH configuration for remote execution
 ssh:
-  host: "25.2.190.194"
+  host: "10.243.62.128"
   port: 22
   username: "jokh38"
   private_key_path: "config\\id_rsa"

@@ -206,6 +206,17 @@ class DatabaseManager:
                     )
                 ''')
                 
+                # Create process_status table for tracking running processes
+                cursor.execute('''
+                    CREATE TABLE IF NOT EXISTS process_status (
+                        process_name TEXT PRIMARY KEY,
+                        pid INTEGER,
+                        is_remote BOOLEAN NOT NULL,
+                        last_updated TEXT NOT NULL,
+                        host TEXT
+                    )
+                ''')
+                
                 conn.commit()
                 cursor.close()
                 self._tables_initialized = True
