@@ -6,11 +6,11 @@ import sqlite3
 import threading
 import atexit
 import weakref
+import logging
 from contextlib import contextmanager
 from typing import Optional, Set, Dict
 
 from .exceptions import DatabaseError
-from .logger import get_logger
 
 
 class DatabaseManager:
@@ -23,11 +23,20 @@ class DatabaseManager:
         self._init_lock = threading.Lock()  # Lock for table initialization
         self._all_connections: Set[sqlite3.Connection] = set()
         self._thread_connections: Dict[int, sqlite3.Connection] = {}
-        self.logger = get_logger(__name__)
+        self._logger: Optional[logging.Logger] = None
         self._tables_initialized = False
         
         # Register cleanup handler for process termination
         atexit.register(self.close_all)
+
+    @property
+    def logger(self) -> logging.Logger:
+        """Lazy-loaded logger property."""
+        if self._logger is None:
+            # Import logger locally to prevent circular dependency
+            from .logger import get_logger
+            self._logger = get_logger(__name__)
+        return self._logger
     
     def _get_connection(self) -> sqlite3.Connection:
         """Get thread-local database connection."""
