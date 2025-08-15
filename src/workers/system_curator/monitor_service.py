@@ -6,7 +6,7 @@ Handles SSH connections and GPU metrics collection from remote systems.
 from typing import List, Dict, Any
 from src.common.exceptions import RemoteExecutionError, ConfigurationError, format_error_message
 from src.common.logger import get_logger
-from src.common.ssh_base import SSHConnectionManager
+from src.common.ssh_base import SSHManager
 
 
 def fetch_gpu_metrics(config: Dict[str, Any], db_manager=None) -> List[Dict[str, Any]]:
@@ -24,10 +24,8 @@ def fetch_gpu_metrics(config: Dict[str, Any], db_manager=None) -> List[Dict[str,
         ConfigurationError: If required configuration is missing
         RemoteExecutionError: If SSH connection or command execution fails
     """
-    # Initialize logger with database manager
     logger = get_logger(__name__, db_manager)
     
-    # Extract configuration sections
     ssh_config = config.get('ssh', {})
     gpu_command = config.get('curator', {}).get('gpu_monitor_command')
 
@@ -36,15 +34,11 @@ def fetch_gpu_metrics(config: Dict[str, Any], db_manager=None) -> List[Dict[str,
     if not gpu_command:
         raise ConfigurationError("Missing 'curator.gpu_monitor_command' configuration")
 
-    # Use centralized SSH connection manager
-    ssh_manager = SSHConnectionManager(ssh_config, db_manager)
+    ssh_manager = SSHManager(ssh_config, db_manager)
     
     try:
-        with ssh_manager.get_connection() as client:
-            # Execute GPU monitoring command
+        with ssh_manager.get_transient_connection() as client:
             stdin, stdout, stderr = client.exec_command(gpu_command)
-            
-            # Check command exit status
             exit_status = stdout.channel.recv_exit_status()
             
             if exit_status != 0:
@@ -56,14 +50,12 @@ def fetch_gpu_metrics(config: Dict[str, Any], db_manager=None) -> List[Dict[str,
                 )
                 raise RemoteExecutionError(message)
             
-            # Read and parse output
             stdout_output = stdout.read().decode('utf-8').strip()
             
             if not stdout_output:
                 logger.info("No GPU data found in command output")
                 return []
             
-            # Parse nvidia-smi CSV output
             gpu_metrics = []
             for line in stdout_output.split('\n'):
                 if line.strip():
@@ -98,6 +90,3 @@ def fetch_gpu_metrics(config: Dict[str, Any], db_manager=None) -> List[Dict[str,
             suggestion="Check system health and GPU driver status"
         )
         raise RemoteExecutionError(message)
-    finally:
-        # Clean up SSH connection
-        ssh_manager.close()
