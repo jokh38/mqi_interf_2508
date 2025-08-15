@@ -1,7 +1,7 @@
 # Default configuration for MQI Communicator system
 
 database:
-  path: "data\\mqi_system_dev.db"
+  path: "data/mqi_system_dev.db"
 
 # RabbitMQ message queue configuration
 rabbitmq:
@@ -33,7 +33,7 @@ processes:
 
 # Case Scanner configuration
 scanner:
-  target_directory: "data\\scan_directory"
+  target_directory: "data/scan_directory"
   scan_interval_sec: 1800
   conductor_queue_name: "conductor_queue"
 
@@ -42,14 +42,14 @@ sftp:
   host: "25.2.190.194"
   port: 22
   username: "jokh38"
-  private_key_path: "config\\id_rsa"
+  private_key_path: "config/id_rsa"
 
 # SSH configuration for remote execution
 ssh:
   host: "25.2.190.194"
   port: 22
   username: "jokh38"
-  private_key_path: "config\\id_rsa"
+  private_key_path: "config/id_rsa"
 
 # File Transfer configuration
 file_transfer:
@@ -66,8 +66,8 @@ archiver:
   schedule: "0 3 * * *"  # Daily at 3 AM
   schedule_interval_sec: 86400
   retention_days: 180
-  backup_path: "data\\backups\\"
-  archive_directory: "data\\archive\\"
+  backup_path: "data/backups/"
+  archive_directory: "data/archive/"
 
 # Workflow definitions
 workflows:
