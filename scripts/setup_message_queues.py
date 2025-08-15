@@ -9,11 +9,14 @@ required for inter-service communication.
 import os
 import sys
 import argparse
+from pathlib import Path
 import pika
 from pika import exceptions
 
 # Add project root to path for imports
-sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+project_root = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(project_root))
+
 
 from src.common.config_loader import load_config
 from src.common.logger import get_logger
@@ -251,28 +254,31 @@ class MessageQueueSetup:
 def main():
     """Main message queue setup function."""
     parser = argparse.ArgumentParser(description="Setup MQI Communicator message queues")
-    parser.add_argument('--env', choices=['development', 'production'], 
-                       default='development', help='Environment to set up')
+    parser.add_argument('--env', choices=['development', 'production'],
+                        default='development', help='Environment to set up')
     parser.add_argument('--rabbitmq-url', help='Override RabbitMQ URL')
-    parser.add_argument('--verify-only', action='store_true', 
-                       help='Only verify existing setup')
-    parser.add_argument('--stats', action='store_true', 
-                       help='Show queue statistics')
-    
+    parser.add_argument('--verify-only', action='store_true',
+                        help='Only verify existing setup')
+    parser.add_argument('--stats', action='store_true',
+                        help='Show queue statistics')
+
     args = parser.parse_args()
-    
+
     try:
         # Load configuration
         if args.rabbitmq_url:
             rabbitmq_url = args.rabbitmq_url
         else:
-            config_file = f"config.{args.env}.yaml"
-            if not os.path.exists(os.path.join("config", config_file)):
-                config_file = "config.default.yaml"
-            
-            config = load_config(os.path.join("config", config_file))
+            # Construct path to the environment-specific config file
+            config_path = project_root / 'config' / f'config.{args.env}.yaml'
+
+            # If the environment-specific config doesn't exist, fall back to the default
+            if not config_path.exists():
+                config_path = project_root / 'config' / 'config.default.yaml'
+
+            config = load_config(str(config_path))
             rabbitmq_url = config['rabbitmq']['url']
-        
+
         logger.info(f"Setting up message queues for {args.env} environment")
         
         # Initialize message queue setup
