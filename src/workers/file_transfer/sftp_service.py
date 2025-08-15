@@ -309,7 +309,7 @@ class SftpService(SSHConnectionManager):
         """Check if remote directory exists without using exceptions for control flow."""
         try:
             stat_info = sftp_client.stat(remote_path)
-            return stat.S_ISDIR(stat_info.st_mode)
+            return stat_info.st_mode is not None and stat.S_ISDIR(stat_info.st_mode)
         except Exception:
             return False
     
@@ -344,7 +344,7 @@ class SftpService(SSHConnectionManager):
         try:
             with self.sftp_connection() as sftp_client:
                 file_stat = sftp_client.stat(remote_path)
-                return stat.S_ISDIR(file_stat.st_mode)
+                return file_stat.st_mode is not None and stat.S_ISDIR(file_stat.st_mode)
         except Exception as e:
             self.logger.debug(f"Failed to check if {remote_path} is directory: {e}")
             return False

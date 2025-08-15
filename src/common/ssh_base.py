@@ -138,7 +138,7 @@ class SSHConnectionManager:
         try:
             client = self._connect()
             yield client
-        except Exception as e:
+        except Exception:
             # If an error occurs, close the potentially corrupted connection
             if client is not None:
                 try:

@@ -6,7 +6,7 @@ via SSH connection and collect execution results.
 """
 
 import paramiko
-from typing import Dict, Any, Optional
+from typing import Dict, Any
 from src.common.exceptions import RemoteExecutionError
 from src.common.logger import get_logger
 from src.common.ssh_base import SSHConnectionManager

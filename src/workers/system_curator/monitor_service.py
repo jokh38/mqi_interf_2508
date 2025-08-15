@@ -3,7 +3,7 @@ Monitor service for System Curator worker.
 Handles SSH connections and GPU metrics collection from remote systems.
 """
 
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any
 from src.common.exceptions import RemoteExecutionError, ConfigurationError, format_error_message
 from src.common.logger import get_logger
 from src.common.ssh_base import SSHConnectionManager

@@ -4,9 +4,7 @@ File Transfer message handler.
 
 import os
 import time
-import sys
 import threading
-from pathlib import Path
 from typing import Dict, Any
 from datetime import datetime
 
@@ -215,11 +213,14 @@ class FileTransferHandler:
         self.logger.info(f"Starting case upload: {case_id} from {local_path} to {remote_path}", extra={'correlation_id': correlation_id})
         
         # Perform upload with thread safety and retry logic
-        with self._operation_lock:
-            success = self._retry_operation(
-                lambda: self._upload_with_verification(local_path, remote_path),
-                f"upload case {case_id}"
-            )
+        if local_path and remote_path:
+            with self._operation_lock:
+                success = self._retry_operation(
+                    lambda: self._upload_with_verification(local_path, remote_path),
+                    f"upload case {case_id}"
+                )
+        else:
+            success = False
         
         if success:
             self.logger.info(f"Case upload completed successfully: {case_id}", extra={'correlation_id': correlation_id})
@@ -276,11 +277,14 @@ class FileTransferHandler:
         self.logger.info(f"Starting results download: {case_id} from {remote_path} to {local_path}", extra={'correlation_id': correlation_id})
         
         # Perform download with thread safety and retry logic
-        with self._operation_lock:
-            success = self._retry_operation(
-                lambda: self._download_with_verification(remote_path, local_path),
-                f"download results {case_id}"
-            )
+        if local_path and remote_path:
+            with self._operation_lock:
+                success = self._retry_operation(
+                    lambda: self._download_with_verification(remote_path, local_path),
+                    f"download results {case_id}"
+                )
+        else:
+            success = False
         
         if success:
             self.logger.info(f"Results download completed successfully: {case_id}", extra={'correlation_id': correlation_id})

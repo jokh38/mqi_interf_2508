@@ -2,7 +2,7 @@
 """
 A simple remote command executor using SSH.
 """
-from typing import Dict, Any, Tuple, Optional
+from typing import Dict, Any, Tuple
 
 from .ssh_client_manager import SSHClientManager
 from .exceptions import RemoteExecutionError

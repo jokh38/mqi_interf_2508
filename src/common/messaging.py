@@ -6,7 +6,7 @@ import json
 import time
 import uuid
 from datetime import datetime
-from typing import Dict, Any, Callable, Optional, TYPE_CHECKING, Union
+from typing import Dict, Any, Callable, Optional, TYPE_CHECKING
 from .exceptions import NetworkError
 from .logger import get_logger
 

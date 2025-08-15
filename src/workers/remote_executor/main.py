@@ -5,8 +5,6 @@ This module provides the main entry point for running the Remote Executor worker
 """
 
 import sys
-import os
-from pathlib import Path
 
 from src.common.config_loader import load_config
 from src.common.messaging import MessageBroker
