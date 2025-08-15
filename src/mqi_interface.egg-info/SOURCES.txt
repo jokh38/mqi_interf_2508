@@ -6,7 +6,6 @@ src/common/exceptions.py
 src/common/logger.py
 src/common/messaging.py
 src/common/ssh_base.py
-src/common/ssh_client_manager.py
 src/conductor/__init__.py
 src/conductor/main.py
 src/conductor/state_service.py
