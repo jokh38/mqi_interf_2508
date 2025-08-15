@@ -1,0 +1,10 @@
+src/common/config_loader.py:6: error: Library stubs not installed for "yaml"  [import]
+src/common/config_loader.py:6: note: Hint: "python3 -m pip install types-PyYAML"
+src/common/config_loader.py:6: note: (or run "mypy --install-types" to install all missing stub packages)
+src/common/config_loader.py:6: note: See https://mypy.readthedocs.io/en/stable/running_mypy.html#missing-imports
+src/common/ssh_base.py:8: error: Library stubs not installed for "paramiko"  [import]
+src/common/ssh_base.py:8: note: Hint: "python3 -m pip install types-paramiko"
+src/common/config_loader.py: error: Source file found twice under different module names: "common.config_loader" and "src.common.config_loader"
+src/common/config_loader.py: note: See https://mypy.readthedocs.io/en/stable/running_mypy.html#mapping-file-paths-to-modules for more info
+src/common/config_loader.py: note: Common resolutions include: a) adding `__init__.py` somewhere, b) using `--explicit-package-bases` or adjusting MYPYPATH
+Found 3 errors in 2 files (errors prevented further checking)

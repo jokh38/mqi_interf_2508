@@ -1,0 +1,2 @@
+src/common/ssh_base.py:117: error: Incompatible types in "yield" (actual type "SSHClient | None", expected type "SSHClient")  [misc]
+Found 1 error in 1 file (checked 43 source files)

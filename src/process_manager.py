@@ -8,7 +8,6 @@ import time
 import threading
 from datetime import datetime
 from typing import Dict, Any, Optional
-import os
 import sys
 import paramiko
 from .common.ssh_base import SSHManager

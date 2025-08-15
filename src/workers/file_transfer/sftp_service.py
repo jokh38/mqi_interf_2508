@@ -53,8 +53,12 @@ class SftpService(SSHManager):
         """
         Get or create an SFTP connection. Reuses an existing connection if active.
         """
-        if self._sftp_client and self._sftp_client.get_channel() and self._sftp_client.get_channel().get_transport() and self._sftp_client.get_channel().get_transport().is_active():
-            return self._sftp_client
+        if self._sftp_client:
+            channel = self._sftp_client.get_channel()
+            if channel:
+                transport = channel.get_transport()
+                if transport and transport.is_active():
+                    return self._sftp_client
 
         self.logger.info("SFTP client not active. Creating a new one.")
         with self.get_persistent_connection() as ssh_client:

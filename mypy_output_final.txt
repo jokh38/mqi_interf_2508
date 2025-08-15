@@ -1,0 +1,3 @@
+src/common/ssh_base.py:111: error: Item "None" of "Transport | None" has no attribute "is_active"  [union-attr]
+src/workers/file_transfer/sftp_service.py:56: error: Item "None" of "Channel | None" has no attribute "get_transport"  [union-attr]
+Found 2 errors in 2 files (checked 43 source files)

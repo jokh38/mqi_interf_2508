@@ -108,10 +108,15 @@ class SSHManager:
             A connected paramiko.SSHClient instance.
         """
         try:
-            if not self._persistent_client or not self._persistent_client.get_transport() or not self._persistent_client.get_transport().is_active():
+            transport = self._persistent_client.get_transport() if self._persistent_client else None
+            if not transport or not transport.is_active():
                 self.logger.info("No active persistent SSH client found. Creating a new one.")
                 self._persistent_client = self._create_ssh_client()
                 self._connect(self._persistent_client)
+
+            if self._persistent_client is None:
+                # This should not be reachable due to the logic above, but it satisfies mypy
+                raise NetworkError("Failed to create a persistent SSH client.")
 
             yield self._persistent_client
         except Exception as e:
