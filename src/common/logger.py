@@ -4,14 +4,16 @@ Structured logger for MQI Communicator system.
 
 import logging
 from datetime import datetime
-from typing import Optional
-from .db_utils import DatabaseManager
+from typing import Optional, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .db_utils import DatabaseManager
 
 
 class DatabaseLogHandler(logging.Handler):
     """Custom log handler that writes to database."""
-    
-    def __init__(self, db_manager: DatabaseManager):
+
+    def __init__(self, db_manager: "DatabaseManager"):
         super().__init__()
         self.db_manager = db_manager
     
@@ -57,7 +59,7 @@ class DatabaseLogHandler(logging.Handler):
                 return
 
 
-def get_logger(name: str, db_manager: Optional[DatabaseManager] = None) -> logging.Logger:
+def get_logger(name: str, db_manager: Optional["DatabaseManager"] = None) -> logging.Logger:
     """
     Get configured logger instance.
     
