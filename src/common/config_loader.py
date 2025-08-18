@@ -39,8 +39,8 @@ def load_config(config_path: Optional[str] = None, db_manager=None) -> Dict[str,
     Raises:
         ConfigurationError: If configuration is invalid or missing
     """
-    # Initialize logger with database manager
-    logger = get_logger(__name__, db_manager)
+    # Logger is now configured centrally. We just get an instance.
+    logger = get_logger(__name__)
     
     if config_path is None:
         # Priority: check MQI_CONFIG_PATH environment variable first

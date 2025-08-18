@@ -11,6 +11,7 @@ from typing import Dict, Any, Optional
 from src.common.config_loader import load_config
 from src.common.db_utils import DatabaseManager
 from src.common.logger import get_logger
+from src.common.logging_setup import setup_logging
 from src.common.messaging import MessageBroker
 from src.process_manager import ProcessManager
 from src.health_monitor import HealthMonitor
@@ -37,10 +38,14 @@ class MainOrchestrator:
         """
         self.config_file = config_file
         self.config = load_config(config_file)
-        self.config['config_file_path'] = config_file  # Add this line to persist config path
+        self.config['config_file_path'] = config_file
         self.db_manager = DatabaseManager(self.config['database']['path'])
-        self.logger = get_logger('main_orchestrator', self.db_manager)
-        self.logger.info("MainOrchestrator logger initialized.")
+
+        # Re-initialize logging with the db_manager to add the database handler
+        setup_logging(level=self.config.get('logging', {}).get('level', 'INFO'), db_manager=self.db_manager)
+
+        self.logger = get_logger(__name__)
+        self.logger.info("MainOrchestrator logger initialized with DB handler.")
         
         self.process_manager: Optional[ProcessManager] = None
         self.health_monitor: Optional[HealthMonitor] = None
@@ -209,34 +214,31 @@ class MainOrchestrator:
 def main():
     """Entry point for command-line execution."""
     import sys
-    
-    # Initialize a basic logger immediately for any pre-startup errors
-    # This logger will not have the DB handler until the orchestrator is up.
-    base_logger = get_logger('main_entry', db_manager=None) 
+    import logging
+
+    # Setup basic console logging immediately.
+    # This will be enhanced with a DB handler once the orchestrator loads the config.
+    setup_logging(level='INFO')
     
     if len(sys.argv) < 2:
-        base_logger.error("Usage: python3 -m src.main_orchestrator <config_file>")
+        logging.error("Usage: python3 -m src.main_orchestrator <config_file>")
         sys.exit(1)
         
     config_file = sys.argv[1]
-    orchestrator = None  # Define orchestrator in the outer scope
+    orchestrator = None
     
     try:
         orchestrator = MainOrchestrator(config_file)
-        # Now we can use the orchestrator's more powerful logger
-        orchestrator.logger.info("Orchestrator initialized successfully. Starting system.")
         orchestrator.run()
     except KeyboardInterrupt:
-        base_logger.info("Shutdown requested by user, exiting...")
+        logging.info("Shutdown requested by user, exiting...")
     except Exception as e:
-        # Use the orchestrator's logger if available, otherwise fall back to the basic one
-        logger = orchestrator.logger if orchestrator else base_logger
-        logger.critical(f"A critical error occurred during startup or execution: {e}", exc_info=True)
+        # The logger should be configured by now, so we can use it directly.
+        logging.critical(f"A critical error occurred: {e}", exc_info=True)
         sys.exit(1)
     finally:
-        # Ensure that stop() is called to clean up resources
         if orchestrator and orchestrator.running:
-            orchestrator.logger.info("System shutting down in finally block.")
+            logging.info("System shutting down in finally block.")
             orchestrator.stop()
 
 
